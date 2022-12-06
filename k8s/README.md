@@ -11,18 +11,20 @@ by [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes/tr
 You'll need to know which kubernetes version supports which version containerd version. Use the [changelog](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.24.md#changed-8) to determine the dependency versions.
 
 For this tutorial we will use:
-Kubernetes: 1.24.0
-containerd: 1.6.4
-runc: 1.1.1
-cni plugin: 1.1.1
-calico: 3.18.0
+- Kubernetes: 1.24.0
+- containerd: 1.6.4
+- runc: 1.1.1
+- cni plugin: 1.1.1
+- calico: 3.18.0
 
-server-1: 192.168.0.215
-agent-1: 192.168.0.225
-agent-2: 192.168.0.226
+Nodes to be setup:
+- server-1: 192.168.0.215
+- agent-1: 192.168.0.225
+- agent-2: 192.168.0.226
 
 #### On all server and agent nodes
 1. **Ensure root user is created and logged in**
+
     To log into root:
     ```
     sudo su -
@@ -34,6 +36,7 @@ agent-2: 192.168.0.226
     ```
 
 2. **Ensure firewall is disabled**
+
     Using systemctl:
     ```
     systemctl disable --now ufw
@@ -48,6 +51,7 @@ agent-2: 192.168.0.226
     ```
 
 3. **Disable swap**
+
     To check for swaps:
     ```
     swapon -s
@@ -66,6 +70,7 @@ agent-2: 192.168.0.226
     ```
 
 4. **Enable and Load Kernel modules [See](https://kubernetes.io/docs/setup/production-environment/container-runtimes/)**
+
     Add containerd.conf to kernel modules:
     ```
     cat >>/etc/modules-load.d/containerd.conf<<EOF
@@ -80,6 +85,7 @@ agent-2: 192.168.0.226
     ```
     
 5. **Update sysctl kernel settings for kubernetes networking [See](https://kubernetes.io/docs/setup/production-environment/container-runtimes/)**
+
     Add the kubernetes conf to sysctl.d:
     Note cat > will overwrite and cat >> will append, choose wisely.
     ```
@@ -95,6 +101,7 @@ agent-2: 192.168.0.226
     ```
 
 6. **Install [containerd](https://github.com/containerd/containerd#hello-kubernetes-v124) and other dependencies**
+
     ```
     apt update
     apt install -y apt-transport-https
@@ -150,17 +157,20 @@ agent-2: 192.168.0.226
     ```
 
 7. **Add kubernetes repository**
+
     ```
     curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
     apt-add-repository "deb http://apt.kubernetes.io/ kubernetes-xenial main"
     ```
 
 8. **Install kubernetes components**
+
     ```
     apt install -y kubeadm=1.24.0-00 kubelet=1.24.0-00 kubectl=1.24.0-00
     ```
 
 9. **OPTIONAL - Enable ssh password authentication**
+
     ```
     sed -i 's/^PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config
     echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config
@@ -168,6 +178,7 @@ agent-2: 192.168.0.226
     ```
     
 10. **OPTIONAL - Set root password**
+
     Do not do this if you already have a root password!
     ```
     echo -e "kubeadmin\nkubeadmin" | passwd root
@@ -175,6 +186,7 @@ agent-2: 192.168.0.226
     ```
     
 11. **OPTIONAL? - Update /etc/hosts file**
+
     ```
     cat >>/etc/hosts<<EOF
     192.168.0.215   server-1.local   server-1
@@ -186,37 +198,45 @@ agent-2: 192.168.0.226
 #### On server nodes
 
 1. **Pull required containers**
+
     ```
     kubeadm config images pull --kubernetes-version=1.24.0
     ```
 
 2. **Initialise kubernetes cluster**
+
     ```
     kubeadm init --kubernetes-version=1.24.0 --apiserver-advertise-address=192.168.0.215 --pod-network-cidr=192.168.0.0/16 >> /root/kubeinit.log
     ```
 
 3. **Deploy [calico](https://github.com/projectcalico/calico) network**
+
     ```
     kubectl --kubeconfig=/etc/kubernetes/admin.conf create -f https://docs.projectcalico.org/v3.18/manifests/calico.yaml
     ```
 
 4. **Cluster join and save the command to script file**
+
     ```
     kubeadm token create --print-join-command > /root/joincluster.sh
     ```
 
 5. **Setup kube config for non root users**
+
     ```
     mkdir -p $HOME/.kube
     sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
     sudo chown $(id -u):$(id -g) $HOME/.kube/config
     ```
+
 6. **Export kubeconfig env**
+
     ```
     export KUBECONFIG=/etc/kubernetes/admin.conf
     ```
 
 7. **Verify cluster connection and status**
+
     ```
     kubectl get nodes
     kubectl get cs
@@ -225,20 +245,27 @@ agent-2: 192.168.0.226
 #### On agent nodes
 
 1. **Join the cluster**
+
     ```
     *run joincluster.sh command from output of servers kubeadm token create*
     ```
+
 2. **Setup kube config for non root users**
+
     ```
     mkdir -p $HOME/.kube
     *copy server kubeconfig file to $HOME/.kube/config and ensure server parameter is ip of server
     sudo chown $(id -u):$(id -g) $HOME/.kube/config
     ```
+
 3. **Export kubeconfig env**
+
     ```
     export KUBECONFIG=$HOME/.kube/config
     ```
+    
 4. **Verify cluster connection and status**
+
     ```
     kubectl get nodes
     kubectl get cs
@@ -247,23 +274,27 @@ agent-2: 192.168.0.226
 #### Test pod deployment
 
 1. **Check current pods**
+
     ```
     kubect get pods -A
     ```
 
 2. **Create deployment**
+
     ```
     kubectl create deploy nginx --image nginx
     kubectl get all
     ```
 
 3. **Expose pod with NodePort**
+
     ```
     kubectl expose deploy nginx --port 80 --type NodePort
     kubectl get svc
     ```
 
 4. **Test pod access**
+
     On each node try access the NodePort assigned to the service.
     ```
     curl 192.168.0.225:31127

@@ -4,9 +4,7 @@ Each shall be own it's own branch.
 ## List of completed tutorials:
 
 ### Tutorial One
-Kubernetes v1.24.0
-on Ubuntu 20.04
-by Just me and OpenSource
+[Kubernetes v1.24.0 on Ubuntu 20.04](https://github.com/drdre-08/tutorials/tree/feature/kubernetes/k8s#tutorial-one) by Just me and OpenSource
 
 ## Notes:
 
@@ -17,7 +15,6 @@ kubeadm init
 ```
 
 ### Uninstall kubernetes
-
 iptables -F flushes the rules of the chain
 iptables -X deletes a chain
 ufw uses iptables so altering iptables may effect your ufw rules
