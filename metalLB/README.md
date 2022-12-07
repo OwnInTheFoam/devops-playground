@@ -94,3 +94,14 @@ For this tutorial we will install via a manifest file.
     Verify nginx pod is accessable from the external ip
     ```
     curl 192.168.0.240
+
+5. **Public access to deployment**
+
+    Port forward HTTP port 80 traffic to the nginx external IP address through your router. Then test the connection:
+    ```
+    curl PUBLIC-IP
+    ```
+    You may setup a DNS A record so a domain resolves to the external ip address of your deployment. Then test the connection:
+    ```
+    curl http://domain.me
+    ```
