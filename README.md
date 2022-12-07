@@ -1,4 +1,13 @@
-This repository contains list of public tutorials, guides and exercises.
-Each shall be own it's own branch.
+# Networking proxies
+- clusterIP
+- NodePort
+- Load Balancer
+- Ingress
 
-List of completed tutorials:
+## List of completed tutorials:
+
+### Tutorial One
+[MetalLB](https://metallb.universe.tf/) v0.13.3 by [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes)
+
+## Notes
+
