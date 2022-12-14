@@ -1,5 +1,5 @@
 # Traefik
-[Traefik]((https://doc.traefik.io/traefik/) ) is a ingress controller for kubernetes.
+[Traefik](https://doc.traefik.io/traefik/) is a ingress controller for kubernetes.
 
 Traefik needs a dynamic persistant storage volume provision. To allow traefik to integrate and manage certificates it will need a volume to store them on. Without this setup, traefik will store the certificate on a temporary volume and it will lose access to them on server reboot.
 
@@ -128,4 +128,3 @@ localhost:9000/dashboard/
     curl nginx.example.com
     curl -H "From: test@example.com" nginx.example.org
     ```
-
