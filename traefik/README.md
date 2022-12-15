@@ -128,3 +128,277 @@ localhost:9000/dashboard/
     curl nginx.example.com
     curl -H "From: test@example.com" nginx.example.org
     ```
+#### [Middlewares](https://doc.traefik.io/traefik/middlewares/overview/)
+
+1. **Add Prefix example**
+
+    ```
+    cat >middleware-addprefix.yaml<<EOF
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: Middleware
+    metadata:
+      name: nginx-add-prefix
+    spec:
+      addPrefix:
+        prefix: /hello
+
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: IngressRoute
+    metadata:
+      name: nginx
+      namespace: default
+    spec:
+      entryPoints:
+        - web
+      routes:
+        - match: Host(`nginx.example.com`)
+          kind: Rule
+          services:
+            - name: nginx-deploy-main
+              port: 80
+        - match: Host(`nginx.example.org`)
+          kind: Rule
+          middlewares:
+            - name: nginx-add-prefix
+          services:
+            - name: nginx-deploy-main
+              port: 80
+    EOF
+    kubectl apply -f middleware-addprefix.yaml
+    kubectl get ingressroute
+    kubectl get middleware
+    kubectl describe ingressroute nginx
+    kubectl logs -f nginx-deploy-main-xxxxxx-xxxx
+    ```
+
+2. **Add strip prefix example**
+
+    ```
+    cat >middleware-stripprefix.yaml<<EOF
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: Middleware
+    metadata:
+      name: nginx-strip-path-prefix
+    spec:
+      stripPrefix:
+        prefixes:
+          - /blue
+          - /green
+
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: IngressRoute
+    metadata:
+      name: nginx
+      namespace: default
+    spec:
+      entryPoints:
+        - web
+      routes:
+        - match: Host(`nginx.example.com`)
+          kind: Rule
+          services:
+            - name: nginx-deploy-main
+              port: 80
+        - match: Host(`nginx.example.com`) && Path(`/blue`)
+          kind: Rule
+          middlewares:
+            - name: nginx-strip-path-prefix
+          services:
+            - name: nginx-deploy-blue
+              port: 80
+        - match: Host(`nginx.example.com`) && Path(`/green`)
+          kind: Rule
+          middlewares:
+            - name: nginx-strip-path-prefix
+          services:
+            - name: nginx-deploy-green
+              port: 80
+    EOF
+    kubectl apply -f middleware-stripprefix.yaml
+    kubectl get ingressroute
+    kubectl get middleware
+    kubectl describe ingressroute nginx
+    kubectl logs -f nginx-deploy-main-xxxxxx-xxxx
+    ```
+
+3. **Add redirect example**
+
+    To use a redirect from web to websecure ensure tls certificates have been setup and update the certificate resolver to your acme server.
+    ```
+    cat >middleware-redirect.yaml<<EOF
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: Middleware
+    metadata:
+      name: nginx-redirect-scheme
+    spec:
+      redirectScheme:
+        scheme: https
+        permanent: true
+        port: "443"
+
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: IngressRoute
+    metadata:
+      name: nginx-http
+      namespace: default
+    spec:
+      entryPoints:
+        - web
+      routes:
+        - match: Host(`nginx.example.com`)
+          kind: Rule
+          middlewares:
+            - name: nginx-redirect-scheme      
+          services:
+            - name: nginx-deploy-main
+              port: 80
+
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: IngressRoute
+    metadata:
+      name: nginx-https
+      namespace: default
+    spec:
+      entryPoints:
+        - websecure
+      routes:
+        - match: Host(`nginx.example.com`)
+          kind: Rule     
+          services:
+            - name: nginx-deploy-main
+              port: 80
+      tls:
+        certResolver: letsencrypt
+    EOF
+    kubectl apply -f middleware-redirect.yaml
+    kubectl get ingressroute
+    kubectl get middleware
+    kubectl describe ingressroute nginx
+    kubectl logs -f nginx-deploy-main-xxxxxx-xxxx
+    ```
+
+3. **Add basic auth example**
+
+    This shall encode a username and password with base64. Then add a secret with the encoded password. Then http request with the middleware wil ensure a correct username and password is supplied before routing to the deployment.
+    ```
+    cat >middleware-basicauth.yaml<<EOF
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: Middleware
+    metadata:
+      name: nginx-basic-auth
+    spec:
+      basicAuth:
+        secret: authsecret
+
+    ---
+    # Example:
+    # apt install htpasswd
+    #   htpasswd -nb venkat hello | base64
+    #   dmVua2F0OiRhcHIxJE52L0lPTDZlJDRqdFlwckpjUk1aWU5aeG45M0xCNi8KCg==
+
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: authsecret
+
+    data:
+      users: |
+        dmVua2F0OiRhcHIxJE52L0lPTDZlJDRqdFlwckpjUk1aWU5aeG45M0xCNi8KCg==
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: IngressRoute
+    metadata:
+      name: nginx
+      namespace: default
+    spec:
+      entryPoints:
+        - web
+      routes:
+        - match: Host(`nginx.example.com`)
+          kind: Rule
+          middlewares:
+            - name: nginx-basic-auth
+          services:
+            - name: nginx-deploy-main
+              port: 80
+    EOF
+    kubectl apply -f middleware-basicauth.yaml
+    kubectl get ingressroute
+    kubectl get middleware
+    kubectl describe ingressroute nginx
+    kubectl logs -f nginx-deploy-main-xxxxxx-xxxx
+    ```
+
+#### Traefik dashboard ingress route
+
+1. **Create ingressrote**
+
+    ```
+    cat >traefik-dashboard.yaml<<EOF
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: Middleware
+    metadata:
+      name: nginx-basic-auth
+    spec:
+      basicAuth:
+        secret: authsecret
+
+    ---
+    # Example:
+    # apt install htpasswd
+    #   htpasswd -nb venkat hello | base64
+    #   dmVua2F0OiRhcHIxJE52L0lPTDZlJDRqdFlwckpjUk1aWU5aeG45M0xCNi8KCg==
+
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: authsecret
+
+    data:
+      users: |
+        dmVua2F0OiRhcHIxJE52L0lPTDZlJDRqdFlwckpjUk1aWU5aeG45M0xCNi8KCg==
+    
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: IngressRoute
+    metadata:
+      name: dashboard
+    spec:
+      entryPoints:
+        - web
+      routes:
+        - match: Host(\`traefik.local\`) && (PathPrefix(\`/dashboard\`) || PathPrefix(\`/api\`))
+          kind: Rule
+          middleware:
+            name: nginx-basic-auth
+          services:
+            - name: api@internal
+              kind: TraefikService
+    EOF
+    kubectl apply -f traefik-dashboard.yaml
+    kubectl get ingressroute
+    kubectl get secret
+    kubectl get middleware
+    kubectl describe ingressroute dashboard
+    ```
+
+2. **Dashboard DNS entry**
+
+    ```
+    kubectl -n traefik get svc
+    nano /etc/hosts
+    ```
+    ```
+    ...
+    traefik-external-ip   traefik.local
+    ...
+    ```
