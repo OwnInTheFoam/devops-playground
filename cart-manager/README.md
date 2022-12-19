@@ -37,7 +37,32 @@ kubectl -n cert-manager get all
 
 ### Configuration
 
-1. **Create a cluster issuer for ssl.**
+1. **Ensure traefik values correct**
+
+    ```
+    nano traefik-values.yaml
+    ```
+    To configure traefik to connect to a acme server add `additionalArguments` to the install values file. Ensure you update the url with the peddle url and the certificate resolver to letsencrypt.
+    ```
+    ...
+    additionalArguments:
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.email=test@hello.com
+      - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
+      - --certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
+
+
+    # Lets Encrypt servers
+
+    # Staging
+    # https://acme-staging-v02.api.letsencrypt.org/directory
+
+    # Production Lets Encrypt
+    # https://acme-v02.api.letsencrypt.org/directory
+    ...
+    ```
+
+2. **Create a cluster issuer for ssl.**
 
     ```
     kubectl get crds | grep cert-manager
@@ -89,11 +114,11 @@ kubectl -n cert-manager get all
     kubectl apply -f certmanager-clusterissuer-production.yaml
     ```
 
-2. **Create certificates??**
+3. **Create certificates??**
 
     https://www.youtube.com/watch?v=G4CmbYL9UPg&ab_channel=TechnoTim
 
-2. **Create ingress**
+4. **Create ingress**
 
     If you have `traefik` installed then may setup the IngressRoute so traefik routes to the service.
     ```
@@ -228,7 +253,7 @@ kubectl -n cert-manager get all
     kubectl describe ingressroute nginx
     ```
 
-3. **DNS host entry**
+5. **DNS host entry**
 
     Ensure your domain resolves to your ingress controller external IP address
     ```
@@ -243,7 +268,7 @@ kubectl -n cert-manager get all
     **Public DNS**
     Create an A custom resource in DNS provider.
 
-4. **Test**
+6. **Test**
 
     ```
     curl -Lk nginx.example.com

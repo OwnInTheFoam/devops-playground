@@ -31,8 +31,23 @@ Traefik default entry ports
     helm show values traefik/traefik --version 20.8.0 > /root/traefik-values.yaml
     nano /root/traefik-values.yaml
     ```
-    Update the values to include a persisent volume. Also if your storage class is not default then specify the name of the storage class as well.
+    Update the values to include
+    - Global arguments: Disable version check and sending usage information.
+    - Dashboard: Disable traefik dashboard to add manually after install.
+    - Persisent volume: Also if your storage class is not default then specify the name of the storage class as well.
     ```
+    ...
+    globalArguments:
+      - "--global.checknewversion=false"
+      - "--global.sendanonymoususage=false"
+    ...
+
+    ...
+    ingressRoute:
+      dashboard:
+        enabled: false
+    ...
+
     ...
     persistence:
       enabled: true
@@ -368,7 +383,7 @@ localhost:9000/dashboard/
     apiVersion: v1
     kind: Secret
     metadata:
-      name: authsecret
+      name: traefik-dashboard-auth
     data:
       users: |
         eW91cnVzZXJuYW1lOiRhcHIxJE5qcmM3TU5mJElQQVgzVzNudTYucXBtRmd6ZXFvOC8KCg==
@@ -377,7 +392,7 @@ localhost:9000/dashboard/
     apiVersion: traefik.containo.us/v1alpha1
     kind: Middleware
     metadata:
-      name: nginx-basic-auth
+      name: basic-auth
     spec:
       basicAuth:
         secret: authsecret
@@ -386,7 +401,7 @@ localhost:9000/dashboard/
     apiVersion: traefik.containo.us/v1alpha1
     kind: Middleware
     metadata:
-      name: nginx-redirect-scheme
+      name: redirect-scheme
     spec:
       redirectScheme:
         scheme: https
@@ -397,7 +412,7 @@ localhost:9000/dashboard/
     apiVersion: traefik.containo.us/v1alpha1
     kind: IngressRoute
     metadata:
-      name: dashboard-http
+      name: traefik-dashboard-http
       namespace: default
     spec:
       entryPoints:
@@ -415,7 +430,7 @@ localhost:9000/dashboard/
     apiVersion: traefik.containo.us/v1alpha1
     kind: IngressRoute
     metadata:
-      name: dashboard-https
+      name: traefik-dashboard-https
       namespace: default
     spec:
       entryPoints:
