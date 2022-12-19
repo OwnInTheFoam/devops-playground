@@ -397,7 +397,7 @@ localhost:9000/dashboard/
     apiVersion: traefik.containo.us/v1alpha1
     kind: IngressRoute
     metadata:
-      name: nginx-http
+      name: dashboard-http
       namespace: default
     spec:
       entryPoints:
@@ -415,7 +415,8 @@ localhost:9000/dashboard/
     apiVersion: traefik.containo.us/v1alpha1
     kind: IngressRoute
     metadata:
-      name: dashboard
+      name: dashboard-https
+      namespace: default
     spec:
       entryPoints:
         - websecure
