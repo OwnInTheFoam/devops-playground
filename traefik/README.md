@@ -153,12 +153,12 @@ localhost:9000/dashboard/
       entryPoints:
         - web
       routes:
-        - match: Host(`nginx.example.com`)
+        - match: Host(\`nginx.example.com\`)
           kind: Rule
           services:
             - name: nginx-deploy-main
               port: 80
-        - match: Host(`nginx.example.org`)
+        - match: Host(\`nginx.example.org\`)
           kind: Rule
           middlewares:
             - name: nginx-add-prefix
@@ -171,6 +171,11 @@ localhost:9000/dashboard/
     kubectl get middleware
     kubectl describe ingressroute nginx
     kubectl logs -f nginx-deploy-main-xxxxxx-xxxx
+    ```
+    Notice the logs will indicate middleware applied the /hello path were applicable.
+    ```
+    curl nginx.example.com
+    curl nginx.example.org
     ```
 
 2. **Add strip prefix example**
@@ -198,19 +203,19 @@ localhost:9000/dashboard/
       entryPoints:
         - web
       routes:
-        - match: Host(`nginx.example.com`)
+        - match: Host(\`nginx.example.com\`)
           kind: Rule
           services:
             - name: nginx-deploy-main
               port: 80
-        - match: Host(`nginx.example.com`) && Path(`/blue`)
+        - match: Host(\`nginx.example.com\`) && Path(\`/blue\`)
           kind: Rule
           middlewares:
             - name: nginx-strip-path-prefix
           services:
             - name: nginx-deploy-blue
               port: 80
-        - match: Host(`nginx.example.com`) && Path(`/green`)
+        - match: Host(\`nginx.example.com\`) && Path(\`/green\`)
           kind: Rule
           middlewares:
             - name: nginx-strip-path-prefix
@@ -222,7 +227,11 @@ localhost:9000/dashboard/
     kubectl get ingressroute
     kubectl get middleware
     kubectl describe ingressroute nginx
-    kubectl logs -f nginx-deploy-main-xxxxxx-xxxx
+    ```
+    Notice navigating to the prefix will drop the prefix and navigate to the correct pod.
+    ```
+    curl nginx.example.com/green
+    curl nginx.example.com/blue
     ```
 
 3. **Add redirect example**
@@ -251,10 +260,10 @@ localhost:9000/dashboard/
       entryPoints:
         - web
       routes:
-        - match: Host(`nginx.example.com`)
+        - match: Host(\`nginx.example.com\`)
           kind: Rule
           middlewares:
-            - name: nginx-redirect-scheme      
+            - name: nginx-redirect-scheme
           services:
             - name: nginx-deploy-main
               port: 80
@@ -269,8 +278,8 @@ localhost:9000/dashboard/
       entryPoints:
         - websecure
       routes:
-        - match: Host(`nginx.example.com`)
-          kind: Rule     
+        - match: Host(\`nginx.example.com\`)
+          kind: Rule
           services:
             - name: nginx-deploy-main
               port: 80
@@ -281,7 +290,7 @@ localhost:9000/dashboard/
     kubectl get ingressroute
     kubectl get middleware
     kubectl describe ingressroute nginx
-    kubectl logs -f nginx-deploy-main-xxxxxx-xxxx
+    curl http://nginx.example.com
     ```
 
 3. **Add basic auth example**
@@ -301,8 +310,8 @@ localhost:9000/dashboard/
     ---
     # Example:
     # apt install htpasswd
-    #   htpasswd -nb venkat hello | base64
-    #   dmVua2F0OiRhcHIxJE52L0lPTDZlJDRqdFlwckpjUk1aWU5aeG45M0xCNi8KCg==
+    #   htpasswd -nb yourusername yourpassword | base64
+    #   eW91cnVzZXJuYW1lOiRhcHIxJE5qcmM3TU5mJElQQVgzVzNudTYucXBtRmd6ZXFvOC8KCg==
 
     apiVersion: v1
     kind: Secret
@@ -311,7 +320,7 @@ localhost:9000/dashboard/
 
     data:
       users: |
-        dmVua2F0OiRhcHIxJE52L0lPTDZlJDRqdFlwckpjUk1aWU5aeG45M0xCNi8KCg==
+        eW91cnVzZXJuYW1lOiRhcHIxJE5qcmM3TU5mJElQQVgzVzNudTYucXBtRmd6ZXFvOC8KCg==
     ---
     apiVersion: traefik.containo.us/v1alpha1
     kind: IngressRoute
@@ -322,7 +331,7 @@ localhost:9000/dashboard/
       entryPoints:
         - web
       routes:
-        - match: Host(`nginx.example.com`)
+        - match: Host(\`nginx.example.com\`)
           kind: Rule
           middlewares:
             - name: nginx-basic-auth
@@ -330,6 +339,14 @@ localhost:9000/dashboard/
             - name: nginx-deploy-main
               port: 80
     EOF
+    ```
+    Create your base64 encrypted username and password:
+    ```
+    htpasswd -nb yourusername yourpassword | base64
+    ```
+    Then add the encryption key to the secret, before applying the configuration:
+    ```
+    nano middleware-basicauth.yaml
     kubectl apply -f middleware-basicauth.yaml
     kubectl get ingressroute
     kubectl get middleware
@@ -337,12 +354,25 @@ localhost:9000/dashboard/
     kubectl logs -f nginx-deploy-main-xxxxxx-xxxx
     ```
 
-#### Traefik dashboard ingress route
+#### [Traefik dashboard](https://doc.traefik.io/traefik/getting-started/install-traefik/#exposing-the-traefik-dashboard) ingress route
 
 1. **Create ingressrote**
 
     ```
     cat >traefik-dashboard.yaml<<EOF
+    ---
+    # Example:
+    # apt install htpasswd
+    #   htpasswd -nb yourusername yourpassword | base64
+    #   eW91cnVzZXJuYW1lOiRhcHIxJE5qcmM3TU5mJElQQVgzVzNudTYucXBtRmd6ZXFvOC8KCg==
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: authsecret
+    data:
+      users: |
+        eW91cnVzZXJuYW1lOiRhcHIxJE5qcmM3TU5mJElQQVgzVzNudTYucXBtRmd6ZXFvOC8KCg==
+
     ---
     apiVersion: traefik.containo.us/v1alpha1
     kind: Middleware
@@ -353,20 +383,34 @@ localhost:9000/dashboard/
         secret: authsecret
 
     ---
-    # Example:
-    # apt install htpasswd
-    #   htpasswd -nb venkat hello | base64
-    #   dmVua2F0OiRhcHIxJE52L0lPTDZlJDRqdFlwckpjUk1aWU5aeG45M0xCNi8KCg==
-
-    apiVersion: v1
-    kind: Secret
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: Middleware
     metadata:
-      name: authsecret
+      name: nginx-redirect-scheme
+    spec:
+      redirectScheme:
+        scheme: https
+        permanent: true
+        port: "443"
 
-    data:
-      users: |
-        dmVua2F0OiRhcHIxJE52L0lPTDZlJDRqdFlwckpjUk1aWU5aeG45M0xCNi8KCg==
-    
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: IngressRoute
+    metadata:
+      name: nginx-http
+      namespace: default
+    spec:
+      entryPoints:
+        - web
+      routes:
+        - match: Host(\`traefik.local\`) && (PathPrefix(\`/dashboard\`) || PathPrefix(\`/api\`))
+          kind: Rule
+          middlewares:
+            - name: nginx-redirect-scheme
+          services:
+            - name: api@internal
+              kind: TraefikService
+
     ---
     apiVersion: traefik.containo.us/v1alpha1
     kind: IngressRoute
@@ -374,16 +418,20 @@ localhost:9000/dashboard/
       name: dashboard
     spec:
       entryPoints:
-        - web
+        - websecure
       routes:
         - match: Host(\`traefik.local\`) && (PathPrefix(\`/dashboard\`) || PathPrefix(\`/api\`))
           kind: Rule
-          middleware:
-            name: nginx-basic-auth
+          middlewares:
+            - name: nginx-basic-auth
           services:
             - name: api@internal
               kind: TraefikService
+      tls:
+        certResolver: pebble
     EOF
+    nano traefik-dashboard.yaml
+    htpasswd -nb yourusername yourpassword | base64
     kubectl apply -f traefik-dashboard.yaml
     kubectl get ingressroute
     kubectl get secret
@@ -402,3 +450,55 @@ localhost:9000/dashboard/
     traefik-external-ip   traefik.local
     ...
     ```
+
+#### Traefik round robbin
+
+1. **Configuration**
+
+    ```
+    cat >traefik-roundrobbin.yaml<<EOF
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: TraefikService
+    metadata:
+      name: nginx-wrr
+      namespace: default
+    spec:
+      weighted:
+        services:
+          - name: nginx-deploy-main
+            port: 80
+            weight: 1
+          - name: nginx-deploy-blue
+            port: 80
+            weight: 1
+          - name: nginx-deploy-green
+            port: 80
+            weight: 1
+
+    ---
+    apiVersion: traefik.containo.us/v1alpha1
+    kind: IngressRoute
+    metadata:
+      name: nginx
+      namespace: default
+    spec:
+      entryPoints:
+        - web
+      routes:
+      - match: Host(\`nginx.example.com\`)
+        kind: Rule
+        services:
+        - name: nginx-wrr
+          kind: TraefikService
+    EOF
+    kubectl apply -f traefik-roundrobbin.yaml
+    ```
+
+2. **Test round robbin**
+
+    Continually navigate to the url and the weighted round robbin should direct to the best available service.
+    ```
+    curl http://nginx.example.com
+    ```
+    
