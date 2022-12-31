@@ -1,8 +1,8 @@
 # MetalLB
 MetalLB is a load balancer for kubernetes.
 
-### Tutorial One
-[MetalLB v0.13.3](https://metallb.universe.tf/release-notes/#version-0-13-3) by [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes)
+### Helpful resources
+- [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes)
 
 #### [Requirements](https://metallb.universe.tf/#requirements)
 - Kubernetes v1.13.0+ cluster without a network load balancer
@@ -15,9 +15,10 @@ MetalLB is a load balancer for kubernetes.
 - [Kustomize](https://metallb.universe.tf/installation/#installation-with-kustomize)
 - [Helm](https://metallb.universe.tf/installation/#installation-with-helm)
 
-For this tutorial we will install via a manifest file.
+For this tutorial we will install [MetalLB v0.13.3](https://metallb.universe.tf/release-notes/#version-0-13-3) via a manifest file.
 
 #### Steps
+
 1. **Ensure cluster running supported K8s version**
 
     ```
