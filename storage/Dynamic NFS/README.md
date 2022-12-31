@@ -35,7 +35,7 @@ su - nfsuser
 
     Export a gerneral purpose mount that uses the default NFS behaviour to restrict a root user on the client machine to interact with the host with superuser privileges. 
     ```
-    sudo mkdir /srv/nfs/kubedata -p
+    sudo mkdir -p /srv/nfs/kubedata
     ```
 
     NFS will translate any root operations on the client to the nobody:nogroup credentials. Therefore, update the directory ownership to match those credentials.
