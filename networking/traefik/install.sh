@@ -29,8 +29,6 @@ yq -i '.additionalArguments += "--log.level=INFO" | .additionalArguments.[] styl
 yq -i '.ports.web.redirectTo="websecure"' /${HOME}/traefik/traefik-values.yaml
 #yq -i '.service.spec.loadBalancerIP="192.168.0.240"' /${HOME}/traefik/traefik-values.yaml
 
-# TODO FIX TURN ON WEB TO WEBSECURE REDIRECT
-
 echo "[TASK] Install traefik with helm"
 helm install traefik traefik/traefik --version ${traefikChartVer} --values /${HOME}/traefik/traefik-values.yaml -n traefik --create-namespace >>${logFile} 2>&1
 
