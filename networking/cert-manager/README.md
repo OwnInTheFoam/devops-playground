@@ -1,10 +1,14 @@
 # Cert Manager
 [cert-manager](https://cert-manager.io/docs/) adds certificates and certificate issuers as resource types in Kubernetes clusters, and simplifies the process of obtaining, renewing and using those certificates.
 
+## Helpful resources
+- [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes)
+- [metin-karakus](https://github.com/m-karakus/kubernetes/tree/master/yamls/certmanager/templates)
+- [Cloud Versity](https://gitlab.com/cloud-versity/rancher-k3s-first-steps/-/tree/main/Certificate%20Manager%20(TLS%20Demo))
+- [Techo Tim](https://github.com/techno-tim/launchpad/tree/master/kubernetes/traefik-cert-manager)
+- [Alex Guedes](https://medium.com/@alexgued3s/how-to-easily-ish-471307f276a9)
 
-## Tutorial One
-[cer-manager v1.10.0](https://github.com/cert-manager/cert-manager/releases/tag/v1.10.1) by [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes)
-
+[cer-manager v1.10.0](https://github.com/cert-manager/cert-manager/releases/tag/v1.10.1)
 ### [Installation](https://cert-manager.io/docs/installation/)
 - Helm chart
 - Manifest
@@ -33,6 +37,7 @@ Check the changes
 ```
 kubectl get namespace
 kubectl -n cert-manager get all
+kubectl get certificate
 ```
 
 ### Configuration
@@ -68,6 +73,8 @@ kubectl -n cert-manager get all
     kubectl get crds | grep cert-manager
     ```
 
+    Note if you want to use wildcard certificates then you will need to use a [dns01](https://cert-manager.io/docs/configuration/acme/dns01/) challenge. However [http01](https://cert-manager.io/docs/configuration/acme/http01/) challenges are easier to setup.
+
     **Staging:**
     ```
     cat >certmanager-clusterissuer-staging.yaml<<EOF
@@ -83,10 +90,10 @@ kubectl -n cert-manager get all
         privateKeySecretRef:
           name: letsencrypt-staging
         solvers:
-    #    -dns01: to use a public dns ie cloudflare
         - http01:
             ingress:
               class: traefik
+    #    - dns01: to use a public dns ie cloudflare
     EOF
     kubectl apply -f certmanager-clusterissuer-staging.yaml
     ```
@@ -117,6 +124,13 @@ kubectl -n cert-manager get all
 3. **Create certificates??**
 
     https://www.youtube.com/watch?v=G4CmbYL9UPg&ab_channel=TechnoTim
+    https://gitlab.com/cloud-versity/rancher-k3s-first-steps/-/blob/main/Certificate%20Manager%20(TLS%20Demo)/certificate-staging.yaml
+
+    Note the namespace must match the namespace that the service is within!
+
+    ```
+    kubectl get challenges
+    ```
 
 4. **Create ingress**
 
