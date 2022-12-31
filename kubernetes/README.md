@@ -1,10 +1,9 @@
-This repository contains list of public tutorials, guides and exercises.
-Each shall be own it's own branch.
+List of kubernetes tutorials, guides and exercises.
 
 ## List of completed tutorials:
 
-### Tutorial One
-[Kubernetes v1.24.0 on Ubuntu 20.04](https://github.com/drdre-08/tutorials/tree/feature/kubernetes/k8s#tutorial-one) by Just me and OpenSource
+- [Kubernetes v1.24.0](https://github.com/drdre-08/tutorials/tree/master/kubernetes/k8s)
+- [K3d v5.4.6](https://github.com/drdre-08/tutorials/tree/master/kubernetes/k3d)
 
 ## Notes:
 
@@ -12,22 +11,6 @@ Each shall be own it's own branch.
 ```
 kubeadm reset
 kubeadm init
-```
-
-### Uninstall kubernetes
-iptables -F flushes the rules of the chain
-iptables -X deletes a chain
-ufw uses iptables so altering iptables may effect your ufw rules
-```
-kubeadm reset
-sudo apt-get purge kubeadm kubectl kubelet kubernetes-cni kube*
-sudo apt-get autoremove
-sudo rm -rf /etc/cni /etc/kubernetes /var/lib/dockershim /var/lib/etcd /var/lib/kubelet /var/run/kubernetes ~/.kube
-
-iptables -F && iptables -X
-iptables -t nat -F && iptables -t nat -X
-iptables -t raw -F && iptables -t raw -X
-iptables -t mangle -F && iptables -t mangle -X
 ```
 
 ### Uninstall Docker
