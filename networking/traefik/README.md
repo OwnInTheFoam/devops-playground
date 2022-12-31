@@ -9,10 +9,14 @@ Traefik default entry ports
 - 8443: websecure
 - 9100: metrics
 
-### Tutorial One
-[Traefik v2.9.6](https://github.com/traefik/traefik/releases/tag/v2.9.6) by [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes)
+## Helpful resources
+- [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes)
+- [TechnoTime](https://docs.technotim.live/posts/kube-traefik-cert-manager-le/)
 
-#### [Requirements](https://doc.traefik.io/traefik/getting-started/install-traefik/)
+## Getting Started
+[Traefik v2.9.6](https://github.com/traefik/traefik/releases/tag/v2.9.6)
+
+### [Requirements](https://doc.traefik.io/traefik/getting-started/install-traefik/)
 - Kubernetes v1.16+ cluster
 - Storage provisioning for SSL certificates
 - Entrypoint load balancer (MetalLB or cloud provider load balancer)
@@ -69,8 +73,8 @@ Traefik default entry ports
 You may access a deployment pod by forwaring the port locally:
 ```
 kubectl -n traefik get all
-kubectl -n traefik port-forward pod/traefik-f984cb844-4sp22 9000:9000
-localhost:9000/dashboard/
+kubectl port-forward -n traefik $(kubectl get pods -n traefik --selector "app.kubernetes.io/name=traefik" --output=name) 9000:9000
+curl localhost:9000/dashboard/
 ```
 
 #### Ingress Routes
