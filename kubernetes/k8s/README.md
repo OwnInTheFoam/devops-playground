@@ -1,10 +1,8 @@
 # Kubernetes
 [Github CHANGELOG](https://github.com/kubernetes/kubernetes/tree/master/CHANGELOG)
 
-## Tutorial One
-Kubernetes v1.24.0
-on Ubuntu 20.04
-by [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes/tree/master/vagrant-provisioning)
+## Helpful resources
+Kubernetes v1.24.0 by [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes/tree/master/vagrant-provisioning)
 
 ### Steps
 
@@ -137,7 +135,7 @@ Nodes to be setup:
     ```
     Configure containerd:
     ```
-    mkdir /etc/containerd
+    mkdir -p /etc/containerd
     containerd config default > /etc/containerd/config.toml
     sed -i 's/SystemdCgroup \= false/SystemdCgroup \= true/g' /etc/containerd/config.toml
     ```
