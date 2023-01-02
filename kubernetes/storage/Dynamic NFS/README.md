@@ -61,7 +61,7 @@ su - nfsuser
     Example:
     ```
     /srv/nfs/kubedata     client-ip(rw,sync,no_subtree_check)
-    /srv/nfs/kubedata     *(rw,sync,no_subtree_check)
+    /srv/nfs/kubedata     *(rw,sync,no_subtree_check,no_root_squash,no_all_squash)
     ```
     Then restart the service
     ```

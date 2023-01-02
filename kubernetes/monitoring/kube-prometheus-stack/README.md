@@ -1,7 +1,8 @@
 # [Prometheus](https://prometheus.io/docs/introduction/overview/)
 
-## Tutorial One
+## Resources
 [Prometheus v2.40.7](https://github.com/prometheus/prometheus/releases/tag/v2.40.7)
+[Techno Tim](https://github.com/techno-tim/launchpad/tree/master/kubernetes/kube-prometheus-stack)
 
 ### Requirememts
 - K8s cluster
@@ -17,6 +18,7 @@
 
 ```
 kubectl get storageclass
+helm search prometheus
 helm inspect values stable/prometheus > /prometheus-values.yaml
 nano 
 ```
