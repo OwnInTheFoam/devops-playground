@@ -123,3 +123,37 @@ systemctl daemon-reload
 systemctl enable wol.service
 systemctl status wol
 ```
+
+## Automatically trigger WakeOnLan on startup
+Create an systemd service file to execute on startup. Note: This could be combined with the above script.
+
+First enable systems to wait for network.
+```
+systemctl enable systemd-networkd.service systemd-networkd-wait-online.service
+```
+
+Then add the cluster boot service
+```
+cat >/etc/systemd/system/clusterboot.service<<EOF
+[Unit]
+Description=Boot all cluster nodes with wol
+After=systemd-networkd-wait-online.service
+Wants=systemd-networkd-wait-online.service
+
+[Service]
+Type=oneshot
+ExecStartPre=/usr/bin/sleep 15
+ExecStart = wakeonlan 00:23:24:E5:0E:DE
+ExecStartPost = wakeonlan 00:23:24:E5:0D:FF
+
+[Install]
+WantedBy=basic.target
+EOF
+```
+Then reload `systemd`:
+```
+systemctl daemon-reload
+systemctl enable clusterboot.service --now
+systemctl status clusterboot
+```
+
