@@ -1,0 +1,25 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multiapp-client
+  namespace: default
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 600
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      component: websecure
+  template:
+    metadata:
+      labels:
+        component: websecure
+    spec:
+      containers:
+      - name: multiapp-client
+        image: drdre08/multi-client
+        ports:
+          - containerPort: 30001
