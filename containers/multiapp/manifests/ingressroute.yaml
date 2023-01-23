@@ -1,0 +1,39 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: multiapp-strip-prefix
+  namespace: default
+spec:
+  stripPrefix:
+    prefixes:
+      - /api
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: multiapp
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik-external
+    #traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    #traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`multiapp.${userDomain}`)
+      kind: Rule
+      services:
+        - name: multiapp-client
+          port: 30001
+    - match: Host(`multiapp.${userDomain}`) && PathPrefix(`/api`)
+      kind: Rule
+      middlewares:
+        - name: multiapp-strip-prefix
+      services:
+        - name: multiapp-server
+          port: 30002
+  tls:
+    secretName: production-tls
