@@ -201,7 +201,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(\`grafana.local.<REDACTED>\`)
+    - match: Host(\`grafana.local.${userDomain}.au\`)
       kind: Rule
       services:
         - name: grafana
