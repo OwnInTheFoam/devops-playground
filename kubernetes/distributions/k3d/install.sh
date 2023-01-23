@@ -6,7 +6,7 @@ k3d version
 #curl -fsSL https://get.docker.com -o get-docker.sh
 #sudo sh get-docker.sh
 #sudo apt-cache policy docker-ce
-#sudo apt-get install docker-ce=17.06.0~ce-0~ubuntu
+#sudo apt install docker-ce=17.06.0~ce-0~ubuntu
 
 # Create k3d cluster called workshop with 2 agents
 k3d cluster create workshop \
