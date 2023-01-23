@@ -12,13 +12,13 @@ sed -i '/192.168.0.226/d' /etc/hosts
 
 echo "[TASK] Uninstall Kubernetes components (kubeadm, kubelet and kubectl)"
 kubeadm reset --force >>${logFile} 2>&1
-apt-get purge kubeadm kubectl kubelet kubernetes-cni kube* >>${logFile} 2>&1
-apt-get autoremove >>${logFile} 2>&1
+apt -qq -y purge kubeadm kubectl kubelet kubernetes-cni kube* >>${logFile} 2>&1
+apt -qq -y autoremove >>${logFile} 2>&1
 rm -rf /etc/cni /etc/kubernetes /var/lib/dockershim /var/lib/etcd /var/lib/kubelet /var/run/kubernetes /usr/local/bin/kube* ~/.kube
-iptables -F && iptables -X
-iptables -t nat -F && iptables -t nat -X
-iptables -t raw -F && iptables -t raw -X
-iptables -t mangle -F && iptables -t mangle -X
+#iptables -F && iptables -X
+#iptables -t nat -F && iptables -t nat -X
+#iptables -t raw -F && iptables -t raw -X
+#iptables -t mangle -F && iptables -t mangle -X
 
 echo "[TASK] Uninstall containerd runtime"
 systemctl stop containerd >>${logFile} 2>&1
