@@ -17,8 +17,8 @@ kubeadm init
 Docker was removed in kubernetes version 1.24.0. If docker needs to uninstalled and purged then the following can do so:
 ```
 dpkg -l | grep -i docker
-sudo apt-get purge -y docker-engine docker docker.io docker-ce docker-ce-cli docker-compose-plugin
-sudo apt-get autoremove -y --purge docker-engine docker docker.io docker-ce docker-compose-plugin
+sudo apt purge -y docker-engine docker docker.io docker-ce docker-ce-cli docker-compose-plugin
+sudo apt autoremove -y --purge docker-engine docker docker.io docker-ce docker-compose-plugin
 sudo rm -rf /var/lib/docker /etc/docker
 sudo rm /etc/apparmor.d/docker
 sudo groupdel docker
