@@ -141,8 +141,8 @@ metadata:
   namespace: monitoring
 type: Opaque
 data:
-  admin-user: Z3JhZmFuYVVzZXI=
-  admin-password: <REDACTED>
+  admin-user: REDACTED
+  admin-password: REDACTED
 EOF
 
 kubectl create namespace monitoring
