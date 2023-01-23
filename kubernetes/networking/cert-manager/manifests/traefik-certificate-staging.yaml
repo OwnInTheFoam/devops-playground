@@ -1,0 +1,14 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: traefik-cert-staging
+  namespace: traefik
+spec:
+  secretName: traefik-staging-tls
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
+  commonName: traefik.local.${userDomain}
+  dnsNames:
+  - traefik.local.${userDomain}

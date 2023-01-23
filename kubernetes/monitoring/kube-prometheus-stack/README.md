@@ -141,8 +141,8 @@ metadata:
   namespace: monitoring
 type: Opaque
 data:
-  admin-user: Z3JhZmFuYVVzZXI=
-  admin-password: MTk5NF9Db29wczk0dQ==
+  admin-user: REDACTED
+  admin-password: REDACTED
 EOF
 
 kubectl create namespace monitoring
@@ -201,7 +201,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(\`grafana.local.bookity.au\`)
+    - match: Host(\`grafana.local.${userDomain}.au\`)
       kind: Rule
       services:
         - name: grafana
