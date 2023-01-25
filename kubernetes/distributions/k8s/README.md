@@ -169,6 +169,7 @@ Nodes to be setup:
 
 9. **OPTIONAL - Enable ssh password authentication**
 
+    If you have not setup ssh authentication with key pair then you will need to permit root login with password.
     ```
     sed -i 's/^PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config
     echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config
@@ -296,4 +297,11 @@ Nodes to be setup:
     On each node try access the NodePort assigned to the service.
     ```
     curl 192.168.0.225:31127
+    ```
+
+5. **Remove pod**
+
+    ```
+    kubectl delete svc/nginx
+    kubectl delete deploy nginx
     ```
