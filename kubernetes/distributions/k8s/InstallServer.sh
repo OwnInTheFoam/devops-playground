@@ -9,27 +9,31 @@ cniPluginVer=1.1.1
 calicoVer=3.18
 # VARIABLE DEFINES
 sshPort=22
-logFile="${HOME}/k8s/install.log"
+DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+logFile="${DIR}/install.log"
 #logFile=">${logFile}"
 
 echo "[TASK 1] Pull required containers"
 kubeadm config images pull --kubernetes-version=${kubernetesVer} >>${logFile} 2>&1
 
 echo "[TASK 2] Initialize Kubernetes Cluster"
-kubeadm init --kubernetes-version=${kubernetesVer} --apiserver-advertise-address=192.168.0.215 --pod-network-cidr=192.168.0.0/16 >> /${HOME}/k8s/kubeinit.log 2>>${logFile}
+kubeadm init --kubernetes-version=${kubernetesVer} --apiserver-advertise-address=192.168.0.215 --pod-network-cidr=192.168.0.0/16 >> /${DIR}/kubeinit.log 2>>${logFile}
 
 echo "[TASK 3] Deploy Calico network"
 kubectl --kubeconfig=/etc/kubernetes/admin.conf create -f https://docs.projectcalico.org/v${calicoVer}/manifests/calico.yaml >>${logFile} 2>&1
 
 echo "[TASK 4] Generate and save cluster join command to /joincluster.sh"
-kubeadm token create --print-join-command > /${HOME}/k8s/joincluster.sh 2>>${logFile}
+kubeadm token create --print-join-command > /${HOME}/joincluster.sh 2>>${logFile}
 
 echo "[TASK 5] Setup kubeconfig"
-mkdir -p $HOME/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
+mkdir -p ${HOME}/.kube
+sudo cp -i /etc/kubernetes/admin.conf ${HOME}/.kube/config
+sudo chown $(id -u):$(id -g) ${HOME}/.kube/config
 
 echo "[TASK 6] Export kubeconfig env"
 export KUBECONFIG=/etc/kubernetes/admin.conf
 
 echo "COMPLETE!"
+
+# scp /file/to/send username@remote:/where/to/put
+

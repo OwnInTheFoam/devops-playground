@@ -9,7 +9,8 @@ cniPluginVer=1.1.1
 calicoVer=3.18
 # VARIABLE DEFINES
 sshPort=22
-logFile="${HOME}/k8s/install.log"
+DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+logFile="${DIR}/install.log"
 #logFile="/dev/null"
 
 # commands ending in >>${logFile} 2>&1
@@ -68,10 +69,10 @@ apt-add-repository -y "deb http://apt.kubernetes.io/ kubernetes-xenial main" >>$
 echo "[TASK 7] Install Kubernetes components (kubeadm, kubelet and kubectl)"
 apt install -qq -y kubeadm=${kubernetesVer}-00 kubelet=${kubernetesVer}-00 kubectl=${kubernetesVer}-00 >>${logFile} 2>&1
 
-echo "[TASK 8] Enable ssh password authentication"
-sed -i 's/^.*PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-sed -i 's/^.*PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config
-systemctl reload sshd
+#echo "[TASK 8] Enable ssh password authentication"
+#sed -i 's/^.*PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+#sed -i 's/^.*PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config
+#systemctl reload sshd
 
 #echo "[TASK 9 - DISABLED] Set root password"
 #echo -e "kubeadmin\nkubeadmin" | passwd root >>${logFile} 2>&1
