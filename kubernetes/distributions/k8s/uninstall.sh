@@ -2,7 +2,8 @@
 # chmod u+x uninstall.sh
 
 # DEFINES
-logFile="${HOME}/k8s/uninstall.log"
+DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+logFile="${DIR}/uninstall.log"
 #logFile="/dev/null"
 
 echo "[TASK] Remove from /etc/hosts file"
