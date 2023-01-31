@@ -16,9 +16,9 @@ For this tutorial we will use:
 - calico: 3.18.0
 
 Nodes to be setup:
-- server-1: 192.168.0.215
-- agent-1: 192.168.0.225
-- agent-2: 192.168.0.226
+- server1: 192.168.0.215
+- server2: 192.168.0.225
+- server3: 192.168.0.226
 
 #### On all server and agent nodes
 1. **Ensure root user is created and logged in**
@@ -188,9 +188,9 @@ Nodes to be setup:
 
     ```
     cat >>/etc/hosts<<EOF
-    192.168.0.215   server-1.local   server-1
-    192.168.0.225   agent-1.local    agent-1
-    192.168.0.226   agent-2.local    agent-2
+    192.168.0.215   server1.local   server1
+    192.168.0.225   server2.local   server2
+    192.168.0.226   server3.local   server3
     EOF
     ```
 
