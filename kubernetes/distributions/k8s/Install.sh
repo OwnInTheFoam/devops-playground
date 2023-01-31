@@ -1,28 +1,54 @@
 #!/bin/bash
-# chmod u+x uninstall.sh
+# chmod u+x install.sh
+# git add --chmod=+x install.sh
+
+# requirements
+# - ssh with key pair access to all servers
 
 # DEFINES - versions
 kubernetesVer=1.24.0
 containerdVer=1.6.4
 runcVer=1.1.1
 cniPluginVer=1.1.1
-calicoVer=3.18
+#calicoVer=3.18
+flannelVer=0.20.2
+# SERVERS
+serverNumber=0
+serverName=("server1" "server2" "server3")
+serverUser=("root" "root" "root")
+serversshIP=("123.456.78.910" "123.456.78.910" "123.456.78.910")
+serverlocalIP=("192.168.0.215" "192.168.0.225" "192.168.0.226")
+servernetworkIP="192.168.0.0/24"
+servercniIP="10.244.0.0/16"
+serverPort=("22" "22001" "22002")
 # VARIABLE DEFINES
-sshPort=22
-logFile="${HOME}/k8s/install.log"
+DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+logFile="${DIR}/install.log"
 #logFile="/dev/null"
 
 # commands ending in >>${logFile} 2>&1
 # >>${logFile} redirects standard output to /dev/null, which discards it
 # 2>&1 redirects standard error (2) to standard output (1), which discards it due to above
 
+REQUIRED_PKG=("curl" "sed" "wget" "tar")
+for ((i = 0; i < ${#REQUIRED_PKG[@]}; ++i)); do
+  PKG_OK=$(dpkg-query -W --showformat='${Status}\n' ${REQUIRED_PKG[$i]}|grep "install ok installed")
+  echo "Checking for ${REQUIRED_PKG[$i]}: $PKG_OK"
+  if [ "" = "$PKG_OK" ]; then
+    echo "No ${REQUIRED_PKG[$i]}. Setting up ${REQUIRED_PKG[$i]}."
+    sudo apt update
+    sudo apt -qq -y install ${REQUIRED_PKG[$i]}
+  fi
+done
+
 echo "[TASK 1] Disable and turn off SWAP"
 sed -i '/swap/d' /etc/fstab
 swapoff -a
 
 echo "[TASK 2] Enabled firewall and allow lan network and ssh"
-ufw allow from 192.168.0.0/24 >>${logFile} 2>&1
-ufw allow ${sshPort} >>${logFile} 2>&1
+ufw allow from ${servernetworkIP} >>${logFile} 2>&1
+ufw allow from ${servercniIP} >>${logFile} 2>&1
+ufw allow ${serverPort[serverNumber]} >>${logFile} 2>&1
 ufw --force enable >>${logFile} 2>&1
 systemctl enable --now ufw >>${logFile} 2>&1
 
@@ -68,20 +94,21 @@ apt-add-repository -y "deb http://apt.kubernetes.io/ kubernetes-xenial main" >>$
 echo "[TASK 7] Install Kubernetes components (kubeadm, kubelet and kubectl)"
 apt install -qq -y kubeadm=${kubernetesVer}-00 kubelet=${kubernetesVer}-00 kubectl=${kubernetesVer}-00 >>${logFile} 2>&1
 
-echo "[TASK 8] Enable ssh password authentication"
-sed -i 's/^.*PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-sed -i 's/^.*PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config
-systemctl reload sshd
+#echo "[TASK 8] Enable ssh password authentication"
+#sed -i 's/^.*PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+#sed -i 's/^.*PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config
+#systemctl reload sshd
 
 #echo "[TASK 9 - DISABLED] Set root password"
 #echo -e "kubeadmin\nkubeadmin" | passwd root >>${logFile} 2>&1
 #echo "export TERM=xterm" >> /etc/bash.bashrc
 
 echo "[TASK 10] Update /etc/hosts file"
+for i in ${!serverName[@]}; do
 cat >>/etc/hosts<<EOF
-192.168.0.215   server-1.local   server-1
-192.168.0.225   agent-1.local    agent-1
-192.168.0.226   agent-2.local    agent-2
+${serverlocalIP[$i]}   ${serverName[$i]}.local   ${serverName[$i]}
 EOF
+done
 
+echo "complete install.sh" >>${logFile} 2>&1
 echo "COMPLETE!"
