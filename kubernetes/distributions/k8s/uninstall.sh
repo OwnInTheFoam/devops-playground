@@ -30,6 +30,9 @@ apt purge -qq -y --auto-remove apt-transport-https >>${logFile} 2>&1
 apt purge -qq -y --auto-remove containerd >>${logFile} 2>&1
 rm -rf /usr/local/bin/containerd* /usr/local/bin/ctr /bin/containerd* /bin/ctr /opt/containerd /opt/cni /usr/local/sbin/runc /etc/containerd
 
+echo "[TASK] Remove cni network link"
+ip link delete flannel.1 >>${logFile} 2>&1
+
 echo "[TASK] Remove Kernel settings"
 sed -i '/net.bridge.bridge-nf-call-ip6tables/d' /etc/sysctl.d/kubernetes.conf
 sed -i '/net.bridge.bridge-nf-call-iptables/d' /etc/sysctl.d/kubernetes.conf
