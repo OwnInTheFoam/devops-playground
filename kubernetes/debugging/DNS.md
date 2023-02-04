@@ -7,7 +7,7 @@ mkdir -p ${HOME}/debugging
 
 Create test pod
 ```
-cat >> ${HOME}/debugging/dnsutils.yaml<<EOF
+cat >> ${HOME}/dnsutils.yaml<<EOF
 apiVersion: v1
 kind: Pod
 metadata:
