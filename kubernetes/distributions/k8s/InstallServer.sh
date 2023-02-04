@@ -27,11 +27,13 @@ echo "[TASK 1] Pull required containers"
 kubeadm config images pull --kubernetes-version=${kubernetesVer} >>${logFile} 2>&1
 
 echo "[TASK 2] Initialize Kubernetes Cluster"
-kubeadm init --kubernetes-version=${kubernetesVer} --apiserver-advertise-address=${serverlocalIP[0]} --pod-network-cidr=${servernetworkIP} >> /${DIR}/kubeinit.log 2>>${logFile}
+kubeadm init --kubernetes-version=${kubernetesVer} --apiserver-advertise-address=${serverlocalIP[0]} --pod-network-cidr=${servercniIP} >> /${DIR}/kubeinit.log 2>>${logFile}
 
 echo "[TASK 3] Deploy CNI plugin (flannel/calico) network"
 #kubectl --kubeconfig=/etc/kubernetes/admin.conf create -f https://docs.projectcalico.org/v${calicoVer}/manifests/calico.yaml >>${logFile} 2>&1
-kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f https://raw.githubusercontent.com/flannel-io/flannel/v${flannelVer}/Documentation/kube-flannel.yml >>${logFile} 2>&1
+wget --no-verbose https://raw.githubusercontent.com/flannel-io/flannel/v${flannelVer}/Documentation/kube-flannel.yml >>${logFile} 2>&1
+#sed -i 's/"Network":.*/"Network": "${servercniIP}"/' kube-flannel.yml
+kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f kube-flannel.yml >>${logFile} 2>&1
 
 echo "[TASK 4] Generate and save cluster join command to /joincluster.sh"
 kubeadm token create --print-join-command > /${DIR}/joincluster.sh 2>>${logFile}
