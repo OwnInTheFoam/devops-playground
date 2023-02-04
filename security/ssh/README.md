@@ -47,6 +47,16 @@ apt install -qq -y sshpass >>${logFile} 2>&1
 sshpass -p "${userPassword}" scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -P ${sshPort} root@server-1.local:/${HOME}/k8s/joincluster.sh /${HOME}/k8s/joincluster.sh >>${logFile}
 
 ## SSH shutdown cluster
+Using ssh script:
+```
+cat >${HOME}/shutdowncluster.sh<<EOF
+ssh -p 22 user@IPAddress 'shutdown now'
+ssh -p 22 user@IPAddress 'shutdown now'
+shutdown now
+EOF
+```
+
+Using service on power down:
 ```
 cat >/etc/systemd/system/clustershutdown.service<<EOF
 [Unit]
