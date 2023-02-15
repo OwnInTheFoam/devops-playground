@@ -1,0 +1,3 @@
+[submodule "kubernetes/k8s-scripts/k8s-scripts"]
+	path = kubernetes/k8s-scripts/k8s-scripts
+	url = https://github.com/OwnInTheFoam/k8s-scripts.git
