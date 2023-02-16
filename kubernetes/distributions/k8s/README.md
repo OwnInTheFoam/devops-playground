@@ -2,18 +2,22 @@
 [Github CHANGELOG](https://github.com/kubernetes/kubernetes/tree/master/CHANGELOG)
 
 ## Helpful resources
-Kubernetes v1.24.0 by [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes/tree/master/vagrant-provisioning)
+- [Kubernetes container runtimes](https://kubernetes.io/docs/setup/production-environment/container-runtimes/)
+- [Installing kubeadm cluster](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/)
+- [Installing containerd](https://github.com/containerd/containerd/blob/main/docs/getting-started.md)
+- [Installing flannel](https://github.com/flannel-io/flannel#getting-started-on-kubernetes)
+- Kubernetes v1.24.0 by [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes/tree/master/vagrant-provisioning)
 
 ### Steps
 
-You'll need to know which kubernetes version supports which version containerd version. Use the [changelog](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.24.md#changed-8) to determine the dependency versions.
+You'll need to know which kubernetes version supports which version containerd version. Use the [changelog](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.26.md#changelog-since-v1260) to determine the dependency versions.
 
 For this tutorial we will use:
-- Kubernetes: 1.24.0
-- containerd: 1.6.4
-- runc: 1.1.1
-- cni plugin: 1.1.1
-- calico: 3.18.0
+- Kubernetes: 1.26.1
+- containerd: 1.6.18
+- runc: 1.1.4
+- cni plugin: 1.2.0
+- flannel: 0.21.2 ~~calico: 3.18.0~~
 
 Nodes to be setup:
 - server1: 192.168.0.215
@@ -110,28 +114,28 @@ Nodes to be setup:
     ```
     If the correct version is listed then run:
     ```
-    apt install -y containerd=1.6.4-0ubuntu3
+    apt install -y containerd=1.6.18-0ubuntu3
     ```
-    Otherwise install the correct version manually by downloading the [release](https://github.com/containerd/containerd/releases/tag/v1.6.4).
+    Otherwise install the correct version manually by downloading the [release](https://github.com/containerd/containerd/releases/tag/v1.6.18).
     You will need to know the architecture of your device:
     ```
     dpkg --print-architecture
-    wget https://github.com/containerd/containerd/releases/download/v1.6.4/containerd-1.6.4-linux-amd64.tar.gz
+    wget https://github.com/containerd/containerd/releases/download/v1.6.18/containerd-1.6.18-linux-amd64.tar.gz
     ```
     Unpack the file to /usr/local
     ```
-    tar Cxzvf /usr/local containerd-1.6.4-linux-amd64.tar.gz
+    tar Cxzvf /usr/local containerd-1.6.18-linux-amd64.tar.gz
     ```
     Install containerd's [runc](https://github.com/opencontainers/runc/releases):
     ```
-    wget https://github.com/opencontainers/runc/releases/download/v1.1.1/runc.amd64
+    wget https://github.com/opencontainers/runc/releases/download/v1.1.4/runc.amd64
     install -m 755 runc.amd64 /usr/local/sbin/runc
     ```
     Setup containerd's Container Network Interface (CNI) plugin
     ```
-    wget https://github.com/containernetworking/plugins/releases/download/v1.1.1/cni-plugins-linux-amd64-v1.1.1.tgz
+    wget https://github.com/containernetworking/plugins/releases/download/v1.1.4/cni-plugins-linux-amd64-v1.1.4.tgz
     mkdir -p /opt/cni/bin
-    tar Cxzvf /opt/cni/bin cni-plugins-linux-amd64-v1.1.1.tgz
+    tar Cxzvf /opt/cni/bin cni-plugins-linux-amd64-v1.1.4.tgz
     ```
     Configure containerd:
     ```
@@ -164,7 +168,7 @@ Nodes to be setup:
 8. **Install kubernetes components**
 
     ```
-    apt install -y kubeadm=1.24.0-00 kubelet=1.24.0-00 kubectl=1.24.0-00
+    apt install -y kubeadm=1.26.1-00 kubelet=1.26.1-00 kubectl=1.26.1-00
     ```
 
 9. **OPTIONAL - Enable ssh password authentication**
@@ -184,7 +188,7 @@ Nodes to be setup:
     echo "export TERM=xterm" >> /etc/bash.bashrc
     ```
     
-11. **OPTIONAL? - Update /etc/hosts file**
+11. **Update /etc/hosts file**
 
     ```
     cat >>/etc/hosts<<EOF
@@ -199,19 +203,25 @@ Nodes to be setup:
 1. **Pull required containers**
 
     ```
-    kubeadm config images pull --kubernetes-version=1.24.0
+    kubeadm config images pull --kubernetes-version=1.26.1
     ```
 
 2. **Initialise kubernetes cluster**
 
     ```
-    kubeadm init --kubernetes-version=1.24.0 --apiserver-advertise-address=192.168.0.215 --pod-network-cidr=192.168.0.0/16 >> /root/kubeinit.log
+    kubeadm init --kubernetes-version=1.26.1 --apiserver-advertise-address=192.168.0.215 --pod-network-cidr=10.244.0.0/16 >> /root/kubeinit.log
     ```
 
-3. **Deploy [calico](https://github.com/projectcalico/calico) network**
+3. **Deploy [calico](https://github.com/projectcalico/calico) OR [flannel](https://github.com/flannel-io/flannel#getting-started-on-kubernetes) network**
 
     ```
     kubectl --kubeconfig=/etc/kubernetes/admin.conf create -f https://docs.projectcalico.org/v3.18/manifests/calico.yaml
+    ```
+    ```
+    wget --no-verbose https://raw.githubusercontent.com/flannel-io/flannel/v0.21.2/Documentation/kube-flannel.yml
+    # You may need to change the network if it is not the default:
+    sed -i 's/"Network":.*/"Network": "10.244.0.0/16"/' kube-flannel.yml
+    kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f kube-flannel.yml
     ```
 
 4. **Cluster join and save the command to script file**

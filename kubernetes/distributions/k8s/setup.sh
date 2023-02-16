@@ -10,12 +10,12 @@
 # - ssh with key pair access to all servers
 
 # DEFINES - versions
-kubernetesVer=1.24.0
-containerdVer=1.6.4
-runcVer=1.1.1
-cniPluginVer=1.1.1
+kubernetesVer=1.26.1
+containerdVer=1.6.18
+runcVer=1.1.4
+cniPluginVer=1.2.0
 #calicoVer=3.18
-flannelVer=0.20.2
+flannelVer=0.21.2
 # SERVERS
 serverNumber=0
 serverName=("server1" "server2" "server3")
