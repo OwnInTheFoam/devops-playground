@@ -3,9 +3,9 @@
 # git add --chmod=+x install.sh
 
 # DEFINES
-gitUser=
-gitToken=ghp_xxxxx
-gitRepo=gitops
+GITHUB_TOKEN=ghp_xxxxx
+GITHUB_USER=yourUser
+CLUSTER_REPO=gitops
 
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 logFile="${DIR}/install.log"
@@ -16,14 +16,11 @@ flux check --pre
 echo -e "    \nPress ENTER to proceed with flux installation, Ctrl-C otherwise..."
 read wait
 
-export GITHUB_USER="${gitUser}"
-export GITHUB_TOKEN="${gitToken}"
-
 echo "[TASK 2] Flux bootstrap"
 flux bootstrap github \
   --components-extra=image-reflector-controller,image-automation-controller \
-  --owner=${gitUser} \
-  --repository=${gitRepo} \
+  --owner=${GITHUB_USER} \
+  --repository=${CLUSTER_REPO} \
   --branch=master \
   --path=clusters/cluster0 \
   --token-auth \
@@ -32,11 +29,12 @@ flux bootstrap github \
   --read-write-key
 
 echo "[TASK 3] Clone flux repository"
-git clone git@github.com:${gitUser}/${gitRepo}.git /${HOME}/{$gitRepo}
+git clone git@github.com:${GITHUB_USER}/${CLUSTER_REPO}.git /${HOME}/tigase/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 
 echo "[TASK 4] Creating manifests"
 echo "         - common.yaml"
-cat >>/${HOME}/{$gitRepo}/clusters/clustor0/common.yaml<<EOF
+mkdir -p ${HOME}/tigase/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/cluster0
+cat>${HOME}/tigase/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/cluster0/common.yaml<<EOF
 apiVersion: kustomize.toolkit.fluxcd.io/v1beta1
 kind: Kustomization
 metadata:
@@ -53,7 +51,8 @@ spec:
 EOF
 
 echo "         - common/kustomization.yaml"
-cat >>/${HOME}/{$gitRepo}/infra/common/kustomization.yaml<<EOF
+mkdir -p ${HOME}/tigase/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common
+cat>${HOME}/tigase/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kustomization.yaml<<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -61,8 +60,8 @@ resources:
 EOF
 
 echo "         - sources/kustomization.yaml"
-mkdir -p /${HOME}/{$gitRepo}/infra/common/sources
-cat >>/${HOME}/{$gitRepo}/infra/common/sources/kustomization.yaml<<EOF
+mkdir -p ${HOME}/tigase/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources
+cat>${HOME}/tigase/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/kustomization.yaml<<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: flux-system
@@ -71,7 +70,7 @@ resources:
 EOF
 
 echo "         - sources/chartmuseum.yaml"
-cat >>/${HOME}/{$gitRepo}/infra/common/sources/chartmuseum.yaml<<EOF
+cat>${HOME}/tigase/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/chartmuseum.yaml<<EOF
 apiVersion: source.toolkit.fluxcd.io/v1beta1
 kind: HelmRepository
 metadata:
@@ -83,7 +82,7 @@ spec:
 EOF
 
 echo "         - apps.yaml"
-cat >>/${HOME}/{$gitRepo}/clusters/clustor0/apps.yaml<<EOF
+cat>${HOME}/tigase/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/cluster0/apps.yaml<<EOF
 apiVersion: kustomize.toolkit.fluxcd.io/v1beta1
 kind: Kustomization
 metadata:
@@ -100,8 +99,8 @@ spec:
 EOF
 
 echo "         - apps/kustomization.yaml"
-mkdir -p /${HOME}/{$gitRepo}/infra/apps
-cat >>/${HOME}/{$gitRepo}/infra/apps/kustomization.yaml<<EOF
+mkdir -p ${HOME}/tigase/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/apps
+cat>${HOME}/tigase/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/apps/kustomization.yaml<<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
