@@ -22,93 +22,100 @@ This can setup:
 - [just-4.fun](https://just-4.fun/blog/howto)
 
 ## Requirements
-
-A empty kubernetes cluster
+- Empty kubernetes cluster
 
 ## Setup
 
 Create working directory within the cluster content directory.
 ```bash
+kubectl config get-contexts
 cat>>/etc/profile.d/local-envs.sh<<EOF
 export TIG_CLUSTER_HOME=${HOME}/tigase
+export K8S_CONTEXT=context-name
 EOF
-kubectl config get-contexts
 mkdir -p ${HOME}/tigase/context-name
 ```
 
 Ensure the k8s-scripts repository is cloned.
 ```bash
-cd ${HOME}/tigase/context-name
+cd ${HOME}/tigase/${K8S_CONTEXT}
 git clone https://github.com/tigase/k8s-scripts .
 ```
 
 By running the script to check requirements you may get your setup ready
 ```bash
-./${HOME}/tigase/context-name/scripts/scripts-env-init.sh --check
+/${HOME}/tigase/${K8S_CONTEXT}/scripts/scripts-env-init.sh --check
 ```
 
-### Configuration
+## Configuration
 To configure k8s-scripts edit `/envs/cluster.env` and `/envs/versions.env`.
+```bash
+nano /${HOME}/tigase/${K8S_CONTEXT}/envs/cluster.env
+```
 
-- Set `K8S_CONTEXT`
+- Set `K8S_CONTEXT` for user terminal profile
   ```bash
   kubectl config get-contexts
   cat>>/etc/profile.d/local-envs.sh<<EOF
-  export K8S_CONTEXT=context_name
+  export K8S_CONTEXT=context-name
   EOF
   ```
 - Set `K8S_CLUSTER_CONTEXT`
-  ```bash
-  nano /${HOME}/tigase/${K8S_CONTEXT}/envs/cluster.env
-  ```
 - Set `CLUSTER_NAME`
 - Set `GITHUB_USER`
 - Set `GITHUB_TOKEN`
 - Set `CLUSTER_REPO`
 - Set `SSL_EMAIL`
+Optionally for SSL challenges set one of:
+- Route53: `ROUTE53_ACCESS_KEY` and `ROUTE53_SECRET_KEY`
+- Cloudflare: `CLOUDFLARE_SECRET_KEY` and `CLOUDFLARE_DOMAIN`
 
-### Packages
-- Install kubeseal
+## Packages
+- Install [kubeseal](https://github.com/bitnami-labs/sealed-secrets#linux)
   ```bash
-  wget https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.19.4/kubeseal-0.19.4-linux-arm64.tar.gz
-  tar -xvzf kubeseal-0.19.4-linux-arm64.tar.gz kubeseal
+  wget --no-verbose https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.19.5/kubeseal-0.19.5-linux-amd64.tar.gz
+  tar -xvzf kubeseal-0.19.5-linux-amd64.tar.gz kubeseal
   sudo install -m 755 kubeseal /usr/local/bin/kubeseal
   kubeseal --version
+
+  rm -r kubeseal
+  rm -r kubeseal-0.19.5-linux-amd64.tar.gz
   ```
-- Install fluxcd
+- Install [fluxcd](https://fluxcd.io/flux/installation/)
   ```bash
   curl -s https://fluxcd.io/install.sh | sudo bash
   flux --version
   ```
-- Install kustomize
+- Install [kustomize](https://kubectl.docs.kubernetes.io/installation/kustomize/binaries/)
   ```bash
   curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
-  chmod 755 "${TMP_BIN}"
+  chmod 755 kustomize
   mv -f kustomize /usr/local/bin
-  kustomize version
+  kustomize version --short
   ```
 - Install and configure git
   ```bash
   apt update
   apt install git
+  git --version
   git config --global user.email "you@email.com"
   git config --global user.name "Your Name"
   ```
-  Then add your ssh key to the git repository for easy access - requires ssh key pair
+  Add your ssh key to any git repositories for easy access - requires ssh key pair
   ```bash
   cat /root/.ssh/id_rsa.pub
   ```
 
-### Installation
+## Installation
 
-#### FluxCD
+### FluxCD
 
 ```bash
-./${HOME}/tigase/${K8S_CONTEXT}/scripts/flux-bootstrap.sh 
+./${HOME}/tigase/${K8S_CONTEXT}/scripts/flux-bootstrap.sh
 flux get all -A
 ```
 
-#### Sealed Secrets
+### Sealed Secrets
 
 Identify the version you would like to install. To get the latest version search helm and then input the chart version as `SS_VER` in `/envs/versions.env`
 ```bash
@@ -127,7 +134,7 @@ flux get all -A | grep sealed
 find /${HOME}/tigase/${K8S_CONTEXT}/projects -name "*sealed*"
 ```
 
-#### Ingress nginx
+### Ingress nginx
 
 Identify the version you would like to install. To get the latest version search helm and then input the chart version as `IN_VER` in `/envs/versions.env`
 ```bash
@@ -147,7 +154,7 @@ find /${HOME}/tigase/${K8S_CONTEXT}/projects -name "*ingress*"
 kubectl describe deployment ingress-nginx-controller -n ingress-nginx
 ```
 
-#### Cert-manager
+### Cert-manager
 
 Identify the version you would like to install. To get the latest version search helm and then input the chart version as `CM_VER` in `/envs/versions.env`
 ```bash
@@ -199,7 +206,7 @@ Reconcile the cluster
 flux reconcile source git "flux-system"
 ```
 
-#### Longhorn
+### Longhorn
 
 First check [these](https://longhorn.io/docs/1.4.0/deploy/install/#installation-requirements) requirements and run the following script to confirm:
 ```bash
@@ -252,7 +259,7 @@ Reconcile the cluster
 flux reconcile source git "flux-system"
 ```
 
-#### Kubernetes dashboard
+### Kubernetes dashboard
 
 Identify the version you would like to install. To get the latest version search helm and then input the chart version as `DA_VER` in `/envs/versions.env`
 ```bash
@@ -276,7 +283,7 @@ Test dashboard
 kubectl -n k8s port-forward ${POD_NAME} 8443:8443
 ```
 
-#### Kube-prometheus-stack
+### Kube-prometheus-stack
 
 Identify the version you would like to install. To get the latest version search helm and then input the chart version as `PM_VER` in `/envs/versions.env`
 ```bash
@@ -328,7 +335,7 @@ flux reconcile source git "flux-system"
 kubectl get all -A | grep prometheus
 ```
 
-#### Loki
+### Loki
 
 Identify the version you would like to install. To get the latest version search helm and then input the chart version as `DA_VER` in `/envs/versions.env`
 ```bash
@@ -352,7 +359,7 @@ Test dashboard
 kubectl -n k8s port-forward ${POD_NAME} 8443:8443
 ```
 
-#### Mailu
+### Mailu
 
 Identify the version you would like to install. To get the latest version search helm and then input the chart version as `MAILU_VER` in `/envs/versions.env`
 ```bash

@@ -7,7 +7,7 @@ DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 logFile="${DIR}/uninstall.log"
 #logFile="/dev/null"
 
-echo "[TASK 1] "
+echo "[TASK] "
 
 flux uninstall
 
