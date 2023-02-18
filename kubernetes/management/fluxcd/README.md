@@ -11,8 +11,9 @@ To allow this session to generate bash completions
 ```
 To load bash completions for each session
 ```bash
-# ~/.bashrc or ~/.profile
+cat>>${HOME}/.bashrc<<EOF
 command -v flux >/dev/null && . <(flux completion bash)
+EOF
 ```
 
 ## Steps
