@@ -171,6 +171,13 @@ Nodes to be setup:
     apt install -y kubeadm=1.26.1-00 kubelet=1.26.1-00 kubectl=1.26.1-00
     ```
 
+    Enable kubectl completion bash
+    ```bash
+    cat>>${HOME}/.bashrc<<EOF
+    source <(kubectl completion bash)
+    EOF
+    ```
+
 9. **OPTIONAL - Enable ssh password authentication**
 
     If you have not setup ssh authentication with key pair then you will need to permit root login with password.

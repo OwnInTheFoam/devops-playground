@@ -94,6 +94,11 @@ apt-add-repository -y "deb http://apt.kubernetes.io/ kubernetes-xenial main" >>$
 echo "[TASK 7] Install Kubernetes components (kubeadm, kubelet and kubectl)"
 apt install -qq -y kubeadm=${kubernetesVer}-00 kubelet=${kubernetesVer}-00 kubectl=${kubernetesVer}-00 >>${logFile} 2>&1
 
+echo "[TASK] Enable kubectl completion bash"
+cat>>${HOME}/.bashrc<<EOF
+source <(kubectl completion bash)
+EOF
+
 #echo "[TASK 8] Enable ssh password authentication"
 #sed -i 's/^.*PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config
 #sed -i 's/^.*PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config
