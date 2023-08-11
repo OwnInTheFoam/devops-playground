@@ -1,5 +1,6 @@
 #!/bin/bash
 # chmod u+x install.sh
+# git add --chmod=+x install.sh
 
 # REQUIREMENTS
 # - helm (curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && chmod 700 get_helm.sh && ./get_helm.sh)
@@ -27,3 +28,4 @@ helm show values ingress-nginx/ingress-nginx --version ${nginxChartVer} > /${HOM
 echo "[TASK] Install ingress-nginx with helm"
 helm install ingress-nginx ingress-nginx/ingress-nginx --version ${certmanagerChartVer} --values /${HOME}/ingress-nginx/values.yaml -n ingress-nginx --create-namespace >>${logFile} 2>&1
 
+echo "COMPLETE"
