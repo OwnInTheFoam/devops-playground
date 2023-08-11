@@ -3,6 +3,7 @@ MetalLB is a load balancer for kubernetes.
 
 ### Helpful resources
 - [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes)
+- [MetaLB via Flux with Helm](https://geek-cookbook.funkypenguin.co.nz/kubernetes/loadbalancer/metallb/)
 
 #### [Requirements](https://metallb.universe.tf/#requirements)
 - Kubernetes v1.13.0+ cluster without a network load balancer
@@ -21,14 +22,30 @@ For this tutorial we will install [MetalLB v0.13.3](https://metallb.universe.tf/
 
 1. **Ensure cluster running supported K8s version**
 
-    ```
+    ```bash
     kubectl get nodes
+    ```
+
+2. **Editing kube-proxy config**
+    `kubectl edit configmap -n kube-system kube-proxy`
+    ```bash
+    apiVersion: kubeproxy.config.k8s.io/v1alpha1
+    kind: KubeProxyConfiguration
+    mode: "ipvs"
+    ipvs:
+      strictARP: true
+    ```
+    Edit with scripting:
+    ```bash
+    kubectl get configmap kube-proxy -n kube-system -o yaml
+    sed -e "s/strictARP: false/strictARP: true/"
+    kubectl apply -f - -n kube-system
     ```
 
 2. **Apply the manifest**
 
     ```
-    kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.3/config/manifests/metallb-native.yaml
+    kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.10/config/manifests/metallb-native.yaml
     kubectl get namespace
     kubectl -n metallb-system get all
     ```
@@ -98,6 +115,7 @@ For this tutorial we will install [MetalLB v0.13.3](https://metallb.universe.tf/
 
 5. **Public access to deployment**
 
+    _May need to deploy ingress controller_
     Port forward HTTP port 80 traffic to the nginx external IP address through your router. Then test the connection:
     ```
     curl PUBLIC-IP
@@ -106,3 +124,10 @@ For this tutorial we will install [MetalLB v0.13.3](https://metallb.universe.tf/
     ```
     curl http://domain.me
     ```
+    
+6. **Delete nginx deployment**
+
+  ```
+  sudo kubectl delete deployment nginx
+  ```
+

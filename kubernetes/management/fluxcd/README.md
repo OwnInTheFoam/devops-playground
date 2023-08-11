@@ -1,5 +1,9 @@
 # Flux
-This guide with use [flux with github](https://fluxcd.io/flux/cmd/flux_bootstrap_github/)
+This guide will use [flux with github](https://fluxcd.io/flux/cmd/flux_bootstrap_github/)
+
+## Requirements
+- git
+- kustomize
 
 ## [Installation](https://fluxcd.io/flux/installation/#install-the-flux-cli)
 ```bash
