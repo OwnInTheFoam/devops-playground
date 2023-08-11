@@ -7,6 +7,7 @@
 - [Cloud Versity](https://gitlab.com/cloud-versity/rancher-k3s-first-steps/-/tree/main/Certificate%20Manager%20(TLS%20Demo))
 - [Techo Tim](https://github.com/techno-tim/launchpad/tree/master/kubernetes/traefik-cert-manager)
 - [Alex Guedes](https://medium.com/@alexgued3s/how-to-easily-ish-471307f276a9)
+- [cert-manager](https://cert-manager.io/docs/tutorials/acme/nginx-ingress/)
 
 [cer-manager v1.10.0](https://github.com/cert-manager/cert-manager/releases/tag/v1.10.1)
 
@@ -311,32 +312,34 @@ Create helm repository manifest file and update the repository.
 flux create source helm cert-manager \
   --url="https://charts.jetstack.io" \
   --interval=2h \
-  --export > "/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/sources/cert-manager.yaml"
+  --export > "/${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/sources/cert-manager.yaml"
 
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/sources/
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/
 rm -f kustomization.yaml
 kustomize create --namespace="flux-system" --autodetect --recursive
 
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops
+cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 git add -A
+git status
 git commit -am "cert-manager deployment"
 git push
+
 flux reconcile source git "flux-system"
 ```
 
 Create helm release
 ```bash
-mkdir -p /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager
-mkdir -p /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager
+mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager
+mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager
 
-cat >/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/namespace.yaml<<EOF
+cat >/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/namespace.yaml<<EOF
 apiVersion: v1
 kind: Namespace
 metadata:
   name: cert-manager
 EOF
 
-flux create helmrelease cert-manager \
+sudo flux create helmrelease cert-manager \
 	--interval=2h \
 	--release-name=cert-manager \
 	--source=HelmRepository/cert-manager \
@@ -344,30 +347,30 @@ flux create helmrelease cert-manager \
 	--chart=cert-manager \
 	--namespace=flux-system \
 	--target-namespace=cert-manager \
-  --values=/${HOME}/tigase/${K8S_CONTEXT}/envs/cert-man_values.yaml \
+  --values=/${HOME}/${K8S_CONTEXT}/envs/cert-man_values.yaml \
   --create-target-namespace \
   --crds=CreateReplace \
-  --export > /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/cert-manager.yaml
+  --export > /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/cert-manager.yaml
 ```
 
 Update kustomize manifests
 ```bash
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/
 rm -f kustomization.yaml
 kustomize create --autodetect --recursive
 
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/
 rm -f kustomization.yaml
 kustomize create --namespace="flux-system" --autodetect --recursive
 
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/
 rm -f kustomization.yaml
 kustomize create --autodetect --recursive
 ```
 
 Update repository
 ```bash
-yq e -i '.spec.chart.spec.sourceRef.namespace = "flux-system"' /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/cert-manager.yaml
+yq e -i '.spec.chart.spec.sourceRef.namespace = "flux-system"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/cert-manager.yaml
 
 git add -A
 git commit -am "cert-manager deployment"
@@ -381,7 +384,7 @@ SSL_EMAIL=yourEmail;
 CLOUDFLARE_DOMAIN=yourDomain;
 CLOUDFLARE_SECRET_KEY=yourCloudflareToken;
 
-cat > "/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/issuer-staging.yaml" <<EOF
+cat > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/issuer-staging.yaml" <<EOF
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -399,7 +402,7 @@ spec:
             class: nginx
 EOF
 
-cat > "/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/issuer-production.yaml" <<EOF
+cat > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/issuer-production.yaml" <<EOF
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -420,7 +423,7 @@ EOF
 
 Create dns01 issuer's
 ```bash
-cat > "/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/issuer-staging-dns.yaml" <<EOF
+cat > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/issuer-staging-dns.yaml" <<EOF
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -444,7 +447,7 @@ spec:
             - "${CLOUDFLARE_DOMAIN}"
 EOF
 
-cat > "/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/issuer-production-dns.yaml" <<EOF
+cat > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/issuer-production-dns.yaml" <<EOF
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -471,7 +474,7 @@ EOF
 
 Setup dns solver secrets
 ```bash
-#cat >/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/cloudflare-token-secret.yaml<<EOF
+#cat >/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/cloudflare-token-secret.yaml<<EOF
 #---
 #apiVersion: v1
 #kind: Secret
@@ -488,13 +491,13 @@ kubectl create secret generic "cloudflare-token-secret" \
   --namespace "cert-manager" \
   --from-literal=cloudflare-token="${CLOUDFLARE_SECRET_KEY}" \
   --dry-run=client -o yaml | kubeseal --cert="pub-sealed-secrets-cluster0.pem" \
-  --format=yaml > "/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/cloudflare-solver-secret.yaml"
+  --format=yaml > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/cloudflare-solver-secret.yaml"
 
-kubectl apply -f "/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/cloudflare-token-secret.yaml"
+kubectl apply -f "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/cloudflare-token-secret.yaml"
 ```
 
 ```bash
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager
 rm -f kustomization.yaml
 kustomize create --autodetect --recursive
 
@@ -511,7 +514,7 @@ kubectl logs pod/cert-manager-cc4b776cf-zbljp -n cert-manager -f
 **Adding domain certificates**
 Staging
 ```bash
-cat >/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/certificate-staging-${CLOUDFLARE_DOMAIN}.yaml<<EOF
+cat >/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/certificate-staging-${CLOUDFLARE_DOMAIN}.yaml<<EOF
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -529,12 +532,12 @@ spec:
   - "*.local.${CLOUDFLARE_DOMAIN}"
 EOF
 
-#kubectl apply -f /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/certificate-staging-${CLOUDFLARE_DOMAIN}.yaml
+#kubectl apply -f /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/certificate-staging-${CLOUDFLARE_DOMAIN}.yaml
 ```
 
 Production
 ```bash
-cat >/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/certificate-${CLOUDFLARE_DOMAIN}.yaml<<EOF
+cat >/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/certificate-${CLOUDFLARE_DOMAIN}.yaml<<EOF
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -552,12 +555,12 @@ spec:
   - "*.${CLOUDFLARE_DOMAIN}"
 EOF
 
-#kubectl apply -f /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager/certificate-${CLOUDFLARE_DOMAIN}.yaml
+#kubectl apply -f /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/certificate-${CLOUDFLARE_DOMAIN}.yaml
 ```
 
 Update repository
 ```bash
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager/cert-manager
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager
 rm -f kustomization.yaml
 kustomize create --autodetect --recursive
 
@@ -590,7 +593,7 @@ EOF
 ```
 Test staging certificate for nginx service
 ```bash
-cat >/${HOME}/tigase/${K8S_CONTEXT}/tmp/nginx.yaml<<EOF
+cat >/${HOME}/${K8S_CONTEXT}/tmp/nginx.yaml<<EOF
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -635,38 +638,43 @@ kind: Ingress
 metadata:
   name: nginx
   namespace: default
-  annotations:
-    kubernetes.io/ingress.class: "nginx"
 spec:
   rules:
   - host: nginx.local.${DOMAIN}
     http:
       paths:
-      - pathType: Prefix
-        path: /
+      - path: /
+        pathType: Prefix  
         backend:
           service:
             name: nginx
             port:
               number: 80
+  ingressClassName: nginx
   tls:
+  - hosts:
+    - nginx.local.${DOMAIN}
     secretName: ${DOMAIN}-tls
 EOF
-kubectl apply -f /${HOME}/tigase/${K8S_CONTEXT}/tmp/nginx.yaml
+sudo kubectl apply -f /${HOME}/${K8S_CONTEXT}/tmp/nginx.yaml
+
+curl -Lk nginx.local.${DOMAIN}
+
+sudo kubectl delete -f /${HOME}/${K8S_CONTEXT}/tmp/nginx.yaml
 ```
 
 **Uninstallation**
 
 Remove manifest files from repository
 ```bash
-rm -r /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/cert-manager
-rm -r /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/sources/cert-manager.yaml
-sed -i '/cert-manager/d' /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/kustomization.yaml
-sed -i '/cert-manager/d' /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/sources/kustomization.yaml
+rm -r /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager
+rm -r /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/cert-manager.yaml
+sed -i '/cert-manager/d' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kustomization.yaml
+sed -i '/cert-manager/d' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/kustomization.yaml
 ```
 Update the repository
 ```bash
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 git add -A
 git commit -am "cert-manager uninstallation"
 git push
