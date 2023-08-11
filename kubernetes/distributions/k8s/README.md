@@ -10,14 +10,14 @@
 
 ### Steps
 
-You'll need to know which kubernetes version supports which version containerd version. Use the [changelog](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.26.md#changelog-since-v1260) to determine the dependency versions.
+You'll need to know which kubernetes version supports which version containerd version. Use the [changelog](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.26.md#changelog-since-v1266) to determine the dependency versions.
 
 For this tutorial we will use:
-- Kubernetes: 1.26.1
-- containerd: 1.6.18
-- runc: 1.1.4
-- cni plugin: 1.2.0
-- flannel: 0.21.2 ~~calico: 3.18.0~~
+- Kubernetes: 1.26.7
+- containerd: 1.6.21
+- runc: 1.1.7
+- cni plugin: 1.3.0
+- flannel: 0.21.5 ~~calico: 3.18.0~~
 
 Nodes to be setup:
 - server1: 192.168.0.215

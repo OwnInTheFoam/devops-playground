@@ -1,8 +1,8 @@
 #!/bin/bash
-# chmod u+x uninstall.sh
+# chmod u+x install.sh
 
 # DEFINES - versions
-metallbVer=0.13.3
+metallbVer=0.13.10
 # VARIABLE DEFINES
 startingIP="192.168.0.240"
 endingIP="192.168.0.250"
