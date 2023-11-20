@@ -2,16 +2,22 @@
 
 In this example we will deploy multiple containers from docker images hosted on hub.docker.com. The containers integrate together to form a single app. There is a client, server and database.
 
-```
+```bash
 mkdir -p /${HOME}/multiapp
 ```
 
-## Steps
+## Container building
+
+```bash
+
+```
+
+## Kubernetes deployment manifests
 
 1. **Client deployment**
 
 Create the client deployment manifest
-```
+```bash
 cat >/${HOME}/multiapp/client-deployment.yaml<<EOF
 ---
 apiVersion: apps/v1
