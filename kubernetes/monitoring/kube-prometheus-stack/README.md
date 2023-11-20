@@ -1,3 +1,6 @@
+https://longhorn.io/docs/1.5.2/monitoring/prometheus-and-grafana-setup/
+
+
 # [Kube-Prometheus-Stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack)
 Chart version 43.2.1, aaplication version 0.61.1.
 
@@ -9,6 +12,8 @@ Chart version 43.2.1, aaplication version 0.61.1.
 - persistent storage
 
 ## Installation
+
+### Helm
 Add the helm chart and retrieve the values file.
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -157,11 +162,22 @@ helm install prometheus prometheus-community/kube-prometheus-stack --version 43.
 
 ## Setup access
 
-1. Port forwarding
+1. Port forwarding direct
 
 ```bash
 kubectl -n monitoring get pods -o wide | grep grafana
-kubectl port-forward -n monitoring grafana-84df59b9cb-zds8x 52222:3000
+kubectl -n monitoring port-forward svc/grafana-84df59b9cb-zds8x 52222:3000
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 52222:9090
+curl localhost:52222
+```
+
+2. Port forwarding indirect
+
+```bash
+sudo kubectl proxy --port 8001
+http://localhost:8001/dssapi/v1/namespaces/monitoring/services/kube-prometheus-stack-grafana:80/proxy/
+http://localhost:8001/api/v1/namespaces/monitoring/services/kube-prometheus-stack-prometheus:9090/proxy/
+http://localhost:8001/api/v1/namespaces/monitoring/services/kube-prometheus-stack-alertmanager:9093/proxy/
 ```
 
 2. IngressRoute
@@ -223,15 +239,15 @@ Create helm repository manifest file and update the repository.
 flux create source helm prometheus-community \
   --url="https://prometheus-community.github.io/helm-charts" \
   --interval=2h \
-  --export > "/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/sources/prometheus-community.yaml"
+  --export > "/${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/sources/prometheus-community.yaml"
 
 //flux reconcile source helm prometheus-community
 
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/sources/
+cd /${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/sources/
 rm -f kustomization.yaml
 kustomize create --namespace="flux-system" --autodetect --recursive
 
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops
+cd /${HOME}/${K8S_CONTEXT}/projects/gitops
 git add -A
 git commit -am "kube-prometheus-stack deployment"
 git push
@@ -240,15 +256,41 @@ flux reconcile source git "flux-system"
 
 Create helm release
 ```bash
-mkdir -p /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring
-mkdir -p /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/kube-prometheus-stack/
+mkdir -p /${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring
+mkdir -p /${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/kube-prometheus-stack/
 
-cat >/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/namespace.yaml<<EOF
+cat >/${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/namespace.yaml<<EOF
 apiVersion: v1
 kind: Namespace
 metadata:
   name: monitoring
 EOF
+
+#sudo kubectl exec -it helm-controller-7f8449fd58-gjnv9 -c helm-controller -- sh
+#sudo helm show values prometheus-community/kube-prometheus-stack > values.yaml
+#exit
+#sudo kubectl cp helm-controller-7f8449fd58-gjnv9:/path/to/values.yaml ~/kubernetes/projects/gitops/values.yaml
+
+#sudo flux get helmreleases --all-namespaces
+#sudo helm get values kube-prometheus-stack -n flux-system
+
+#sudo flux get helmrelease kube-prometheus-stack -namespace flux-system --export -o jsonpath='{.spec.chart.values}'
+#sudo flux get helmrelease kube-prometheus-stack -namespace flux-system --export -o yaml > values.yaml
+#sudo kubectl get helmreleases -n flux-system kube-prometheus-stack -o yaml > values.yaml
+
+## ONLY WAY TO DO THIS ADD REPO EXPORT VALUES DELETE REPO INSTALL VIA FLUX
+## https://fluxcd.io/flux/guides/helmreleases/#refer-to-values-inside-the-chart
+#helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#helm repo update
+## helm search repo prometheus-community/kube-prometheus-stack --versions
+#helm show values prometheus-community/kube-prometheus-stack --version 54.0.1 > /${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/kube-prometheus-stack/#kube-prometheus-stack-values.yaml
+#helm repo remove prometheus-community
+#yq -i '.globalArguments[0]="--global.checknewversion=false" | .globalArguments.[] style="double"' /${HOME}/traefik/traefik-values.yaml
+#yq -i '.globalArguments[1]="--global.sendanonymoususage=false" | .globalArguments.[] style="double"' /${HOME}/traefik/traefik-values.yaml
+#yq -i '.ingressRoute.dashboard.enabled=false' /${HOME}/traefik/traefik-values.yaml
+#yq -i '.additionalArguments += "--serversTransport.insecureSkipVerify=true" | .additionalArguments.[] style="double"' /${HOME}/traefik/traefik-values.yaml
+#yq -i '.additionalArguments += "--log.level=INFO" | .additionalArguments.[] style="double"' /${HOME}/traefik/traefik-values.yaml
+#yq -i '.ports.web.redirectTo="websecure"' /${HOME}/traefik/traefik-values.yaml
 
 flux create helmrelease kube-prometheus-stack \
   --interval=2h \
@@ -258,24 +300,24 @@ flux create helmrelease kube-prometheus-stack \
   --chart=kube-prometheus-stack \
   --namespace=flux-system \
   --target-namespace=monitoring \
-  --values=/root/tigase/kubernetes-admin@kubernetes/envs/prometheus-values.yaml \
+  --values=/${HOME}/${K8S_CONTEXT}/envs/prometheus-values.yaml \
   --create-target-namespace \
   --depends-on=flux-system/sealed-secrets \
-  --export > /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/kube-prometheus-stack/kube-prometheus-stack.yaml
+  --export > /${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/kube-prometheus-stack/kube-prometheus-stack.yaml
 ```
 
 Create the grafana secret and update the manifest
 ```bash
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops
+cd /${HOME}/${K8S_CONTEXT}/projects/gitops
 export GRAFANA_ADMIN_PASSWORD=yourPassword
 
 kubectl create secret generic "prometheus-stack-credentials" \
   --namespace "monitoring" \
   --from-literal=grafana_admin_password="${GRAFANA_ADMIN_PASSWORD}" \
   --dry-run=client -o yaml | kubeseal --cert="pub-sealed-secrets-cluster0.pem" \
-  --format=yaml > "/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/kube-prometheus-stack/prometheus-stack-credentials-sealed.yaml"
+  --format=yaml > "/${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/kube-prometheus-stack/prometheus-stack-credentials-sealed.yaml"
 
-cat >>"/${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/kube-prometheus-stack/kube-prometheus-stack.yaml"<<EOF
+cat >>"/${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/kube-prometheus-stack/kube-prometheus-stack.yaml"<<EOF
   valuesFrom:
     - kind: Secret
       name: prometheus-stack-credentials
@@ -287,22 +329,22 @@ EOF
 
 Update kustomize manifests
 ```bash
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/kube-prometheus-stack/
+cd /${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/kube-prometheus-stack/
 rm -f kustomization.yaml
 kustomize create --autodetect --recursive
 
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/
+cd /${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/
 rm -f kustomization.yaml
 kustomize create --namespace="flux-system" --autodetect --recursive
 
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/
+cd /${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/
 rm -f kustomization.yaml
 kustomize create --autodetect --recursive
 ```
 
 Update repository
 ```bash
-yq e -i '.spec.chart.spec.sourceRef.namespace = "flux-system"' /${HOME}/tigase/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/kube-prometheus-stack/kube-prometheus-stack.yaml
+yq e -i '.spec.chart.spec.sourceRef.namespace = "flux-system"' /${HOME}/${K8S_CONTEXT}/projects/gitops/infra/common/monitoring/kube-prometheus-stack/kube-prometheus-stack.yaml
 
 git add -A
 git commit -am "kube-prometheus-stack deployment"
@@ -341,3 +383,7 @@ kubectl get all -A | grep prometheus
 kubectl logs pods/helm-controller-xxxxxxxxxxx -n flux-system
 
 kubectl get helmrepository <name> -oyaml
+
+
+signal: #registerung tutorial # signal-cli --username +12345678 register --voice --captcha censored # https://github.com/AsamK/signal-cli/wiki/Registration-with-captcha # https://signalcaptchas.org/registration/generate.html IN CHROME # signal-cli -u +12345678 verify 123456 # signal-cli -u +1234567 send -m "This is a message" +12345678 #curl -X POST -H "Content-Type: application/json" -d '{"message": "bliblob", "number": "+41824174983", "recipients": ["+21412430"]}' 'http://signal:8080/v2/send' #external testing image: bbernhard/signal-cli-rest-api:latest container_name: signal restart: unless-stopped hostname: signal networks: - monitoring volumes: - /docker/prometheus/signal/client:/root/.local/share/signal-cli - /docker/prometheus/signal/client:/home/.local/share/signal-cli labels: - com.centurylinklabs.watchtower.enable=true environment: - USE_NATIVE=0 signalweb: # curl -X POST localhost:9100/api/v2/alertmanager -d '{"alerts": [{"status": "firing","labels": {"alertname": "test"},"annotations": {"message": "Test alert."}}]}' image: registry.gitlab.com/schlauerlauer/alertmanager-webhook-signal:latest container_name: signalweb restart: unless-stopped hostname: signalweb networks: - monitoring volumes: - /docker/prometheus/signal/web/config.yml:/root/config.yaml labels: - com.centurylinklabs.watchtower.enable=true
+
