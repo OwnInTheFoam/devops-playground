@@ -1,0 +1,45 @@
+**Description**
+There seems to be no way to inplace a YAML for a multiple YAML document.
+Such as while using the select `documentIndex`.
+
+**Example**
+For a given yaml file, data.yml:
+```yaml
+---
+key1: value1
+---
+key2: value2
+```
+Running the command:
+```
+yq -i 'select(documentIndex == 1) |.key3="value3"' data.yml
+```
+
+**Actual behavior**
+```yaml
+---
+key2: value2
+key3: value3
+```
+
+**Expected behavior**
+```yaml
+---
+key1: value1
+---
+key2: value2
+key3: value3
+```
+
+**Potential Work Around**
+Split the yaml, inplace the second yaml then merge. However, this is tedious the more yaml documents in a single file.
+```
+yq -s '"data-" + $index' data.yml
+yq -i '.key3="value3"' data-1.yml
+yq m -x -d'*' data-0.yml data-1.yml
+```
+
+**Additionals**
+Version of yq: 4.30.6
+Operating system: linux
+Installed via: binary release
