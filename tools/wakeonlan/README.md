@@ -61,7 +61,7 @@ To enable WakeOnLan:
 ethtool --change eth1 wol g
 ```
 
-## Sending WakeOnLan magic packet from another PC
+## Sending WakeOnLan magic packet from another PC - Linux
 To do this WakeOnLan needs to be installed
 ```
 wakeonlan -v
@@ -86,6 +86,17 @@ IP 192.168.0.100.1234 > 255.255.255.255.discard: UDP, length 102
 If not then you may need to send the magic packet with the IP address:
 ```
 wakeonlan -i 192.168.0.222 00:12:34:aa:bb:dd
+```
+
+## Sending WakeOnLan magic packet from another PC - Windows
+Download the command line (WolCmd.exe)[https://www.depicus.com/wake-on-lan/wake-on-lan-cmd].
+Send a wake on lan magic packet with
+```
+wolcmd [mac address] [ip address] [subnet mask] [port number]
+```
+Mac address should not have semi colons and Port number is optional. Example:
+```
+./WolCmd.exe 001122334455 192.168.0.100 255.255.255.255
 ```
 
 ## WakeOnLan from shutdown state
