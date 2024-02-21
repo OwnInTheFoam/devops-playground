@@ -343,8 +343,9 @@ spec:
 
 ### Longhorn web UI
 ```bash
-sudo kubectl proxy --port 8001
-http://localhost:8001/api/v1/namespaces/longhorn-system/services/http:longhorn-frontend:80/proxy/
+sudo kubectl proxy --port 30000
+ssh -f server1@IPAddress -p 22001 -L 30000:ContainerIP:30000 -N #if you need to port forward from remote machine
+http://localhost:30000/api/v1/namespaces/longhorn-system/services/http:longhorn-frontend:80/proxy/
 ```
 
 ### Uninstallation
@@ -367,3 +368,15 @@ Reconcile cluster
 flux reconcile source git flux-system
 kubectl get all -A | grep longhorn
 ```
+
+### Adding new disk
+```bash
+## Run in worker node
+sudo fdisk /dev/sda
+sudo mkfs.ext4 /dev/sda
+mkdir /mnt/disk1
+sudo mount /dev/sda /mnt/disk1
+```
+
+In longhorn GUI `Node > Edit node and disks > Add disk`.
+Use the above mount path for the path field.

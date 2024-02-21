@@ -10,6 +10,7 @@ echo "[TASK] Remove from /etc/hosts file"
 sudo sed -i '/192.168.0.215/d' /etc/hosts
 sudo sed -i '/192.168.0.225/d' /etc/hosts
 sudo sed -i '/192.168.0.226/d' /etc/hosts
+sudo sed -i '/192.168.0.227/d' /etc/hosts
 
 echo "[TASK] Uninstall Kubernetes components (kubeadm, kubelet and kubectl)"
 sudo kubeadm reset --force >>${logFile} 2>&1

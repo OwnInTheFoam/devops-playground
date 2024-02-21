@@ -11,13 +11,13 @@ cniPluginVer=1.3.0
 flannelVer=0.21.5
 # SERVERS
 serverNumber=0
-serverName=("server1" "server2" "server3")
-serverUser=("server1" "server2" "server3")
-serversshIP=("123.456.78.910" "123.456.78.910" "123.456.78.910")
-serverlocalIP=("192.168.0.215" "192.168.0.225" "192.168.0.226")
+serverName=("server4" "server1" "server2" "server3")
+serverUser=("server4" "server1" "server2" "server3")
+serversshIP=("123.456.78.910" "123.456.78.910" "123.456.78.910" "123.456.78.910")
+serverlocalIP=("192.168.0.227" "192.168.0.215" "192.168.0.225" "192.168.0.226")
 servernetworkIP="192.168.0.0/24"
 servercniIP="10.244.0.0/16"
-serverPort=("22001" "22002" "22003")
+serverPort=("22004" "22001" "22002" "22003")
 # VARIABLE DEFINES
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 logFile="${DIR}/install.log"
@@ -27,7 +27,7 @@ echo "[TASK 1] Pull required containers"
 sudo kubeadm config images pull --kubernetes-version=${kubernetesVer} >>${logFile} 2>&1
 
 echo "[TASK 2] Initialize Kubernetes Cluster"
-sudo kubeadm init --kubernetes-version=${kubernetesVer} --apiserver-advertise-address=${serverlocalIP[0]} --pod-network-cidr=${servercniIP} >> /${DIR}/kubeinit.log 2>>${logFile}
+sudo kubeadm init --kubernetes-version=${kubernetesVer} --apiserver-advertise-address=${serverlocalIP[0]} --pod-network-cidr=${servercniIP} --control-plane-endpoint=cluster-endpoint --config kubeadm-config.yaml --upload-certs>> /${DIR}/kubeinit.log 2>>${logFile}
 
 echo "[TASK 3] Name the Kubernetes Cluster"
 sudo kubectl config rename-context kubernetes-admin@kubernetes kubernetes >>${logFile} 2>&1
