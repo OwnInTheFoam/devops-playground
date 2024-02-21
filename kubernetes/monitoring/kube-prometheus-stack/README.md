@@ -174,10 +174,11 @@ curl localhost:52222
 2. Port forwarding indirect
 
 ```bash
-sudo kubectl proxy --port 8001
-http://localhost:8001/dssapi/v1/namespaces/monitoring/services/kube-prometheus-stack-grafana:80/proxy/
-http://localhost:8001/api/v1/namespaces/monitoring/services/kube-prometheus-stack-prometheus:9090/proxy/
-http://localhost:8001/api/v1/namespaces/monitoring/services/kube-prometheus-stack-alertmanager:9093/proxy/
+sudo kubectl proxy --port 30000
+ssh -f server1@IPAddress -p 22001 -L 30000:ContainerIP:30000 -N #if you need to port forward from remote machine
+http://localhost:30000/dssapi/v1/namespaces/monitoring/services/kube-prometheus-stack-grafana:80/proxy/
+http://localhost:30000/api/v1/namespaces/monitoring/services/kube-prometheus-stack-prometheus:9090/proxy/
+http://localhost:30000/api/v1/namespaces/monitoring/services/kube-prometheus-stack-alertmanager:9093/proxy/
 ```
 
 2. IngressRoute
