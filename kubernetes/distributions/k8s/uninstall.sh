@@ -3,6 +3,7 @@
 
 # DEFINES
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+cd ${DIR}
 logFile="${DIR}/uninstall.log"
 touch ${logFile}
 #logFile="/dev/null"
@@ -47,16 +48,12 @@ sudo sed -i '/br_netfilter/d' /etc/modules-load.d/containerd.conf
 sudo modprobe -r overlay
 sudo modprobe -r br_netfilter
 
+echo "[TASK] Delete alias"
+sed -i '/kubectl/d' ~/.bash_aliases
+sed -i '/flux/d' ~/.bash_aliases
+
 echo "[TASK] Delete temporary files from ${DIR}"
-sudo rm -rf ${DIR}/cni-plugins-linux-amd64-v1.3.0.tgz
-sudo rm -rf ${DIR}/containerd-1.6.21-linux-amd64.tar.gz
-sudo rm -rf ${DIR}/joincluster.sh
-sudo rm -rf ${DIR}/kube-flannel.yml
-sudo rm -rf ${DIR}/kubeinit.log
-sudo rm -rf ${DIR}/runc.amd64
-sudo rm -rf ${DIR}/Install.log
-sudo rm -rf ${DIR}/InstallServer.log
-sudo rm -rf ${DIR}/InstallAgent.log
+sudo rm -rf ~/k8s
 sudo rm -rf ~/.kube
 
 echo "COMPLETE!"
