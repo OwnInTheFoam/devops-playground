@@ -24,7 +24,8 @@ servercniIP="10.244.0.0/16"
 serverPort=("22004" "22001" "22002" "22003")
 # VARIABLE DEFINES
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-logFile="${DIR}/install.log"
+logFile="${DIR}/Install.log"
+touch ${logFile}
 #logFile="/dev/null"
 
 # commands ending in >>${logFile} 2>&1

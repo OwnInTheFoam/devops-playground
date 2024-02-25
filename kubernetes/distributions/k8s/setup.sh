@@ -27,11 +27,12 @@ servercniIP="10.244.0.0/16"
 serverPort=("22004" "22001" "22002" "22003")
 # VARIABLE DEFINES
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-logFile="${DIR}/install.log"
+logFile="${DIR}/setup.log"
+touch ${logFile}
 #logFile="/dev/null"
 
 echo "[TASK 1] Run Install.sh on this server"
-sudo /bin/bash ./Install.sh
+/bin/bash ./Install.sh
 
 echo "[TASK 2] Run Install.sh on all other servers"
 for ((i = 1; i < ${#serverName[@]}; ++i)); do
@@ -50,7 +51,8 @@ for ((i = 1; i < ${#serverName[@]}; ++i)); do
   echo "          - ${serverName[$i]} copy joincluster.sh"
   scp -P ${serverPort[$i]} ${DIR}/joincluster.sh ${serverUser[$i]}@${serverlocalIP[$i]}:~/k8s/joincluster.sh >>${logFile} 2>&1
   ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} 'mkdir -p ~/.kube' >>${logFile} 2>&1
-  sudo scp -P ${serverPort[$i]} /etc/kubernetes/admin.conf ${serverUser[$i]}@${serverlocalIP[$i]}:~/.kube/config >>${logFile} 2>&1
+  #scp -P ${serverPort[$i]} /etc/kubernetes/admin.conf ${serverUser[$i]}@${serverlocalIP[$i]}:~/.kube/config >>${logFile} 2>&1
+  scp -P ${serverPort[$i]} ~/.kube/config ${serverUser[$i]}@${serverlocalIP[$i]}:~/.kube/config >>${logFile} 2>&1
 done
 
 echo "[TASK 5] Run InstallAgent.sh on all other servers"

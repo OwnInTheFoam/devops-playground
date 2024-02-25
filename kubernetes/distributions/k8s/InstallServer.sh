@@ -20,14 +20,15 @@ servercniIP="10.244.0.0/16"
 serverPort=("22004" "22001" "22002" "22003")
 # VARIABLE DEFINES
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-logFile="${DIR}/install.log"
+logFile="${DIR}/InstallServer.log"
+touch ${logFile}
 #logFile="/dev/null"
 
 echo "[TASK 1] Pull required containers"
 sudo kubeadm config images pull --kubernetes-version=${kubernetesVer} >>${logFile} 2>&1
 
 echo "[TASK 2] Initialize Kubernetes Cluster"
-sudo kubeadm init --kubernetes-version=${kubernetesVer} --apiserver-advertise-address=${serverlocalIP[0]} --pod-network-cidr=${servercniIP} --control-plane-endpoint=cluster-endpoint --config kubeadm-config.yaml --upload-certs>> /${DIR}/kubeinit.log 2>>${logFile}
+sudo kubeadm init --kubernetes-version=${kubernetesVer} --apiserver-advertise-address=${serverlocalIP[0]} --pod-network-cidr=${servercniIP} --control-plane-endpoint=cluster-endpoint >> /${DIR}/kubeinit.log 2>>${logFile}
 
 echo "[TASK 3] Name the Kubernetes Cluster"
 sudo kubectl config rename-context kubernetes-admin@kubernetes kubernetes >>${logFile} 2>&1

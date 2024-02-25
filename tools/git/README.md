@@ -33,7 +33,8 @@ git clone https://github.com/OwnInTheFoam/devops-playground.git
 
 ## Checkout branch
 ```bash
-git branch -a
-git checkout origin/name-of-branch
+git fetch
+git branch -a -v
+git switch name-of-branch
 ```
 
