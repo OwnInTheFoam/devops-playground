@@ -20,7 +20,8 @@ servercniIP="10.244.0.0/16"
 serverPort=("22004" "22001" "22002" "22003")
 # VARIABLE DEFINES
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-logFile="${DIR}/install.log"
+logFile="${DIR}/InstallAgent.log"
+touch ${logFile}
 #logFile="/dev/null"
 
 #echo "Input root user password of server machine"
