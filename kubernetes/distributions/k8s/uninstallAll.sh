@@ -25,7 +25,8 @@ servercniIP="10.244.0.0/16"
 serverPort=("22004" "22001" "22002" "22003")
 # VARIABLE DEFINES
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-logFile="${DIR}/uninstall.log"
+logFile="${DIR}/uninstallAll.log"
+touch ${logFile}
 #logFile="/dev/null"
 
 echo "[TASK 1] Run uninstall.sh on all other servers"

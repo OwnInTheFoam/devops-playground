@@ -4,6 +4,7 @@
 # DEFINES
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 logFile="${DIR}/uninstall.log"
+touch ${logFile}
 #logFile="/dev/null"
 
 echo "[TASK] Remove from /etc/hosts file"
@@ -45,5 +46,17 @@ sudo sed -i '/overlay/d' /etc/modules-load.d/containerd.conf
 sudo sed -i '/br_netfilter/d' /etc/modules-load.d/containerd.conf
 sudo modprobe -r overlay
 sudo modprobe -r br_netfilter
+
+echo "[TASK] Delete temporary files from ${DIR}"
+sudo rm -rf ${DIR}/cni-plugins-linux-amd64-v1.3.0.tgz
+sudo rm -rf ${DIR}/containerd-1.6.21-linux-amd64.tar.gz
+sudo rm -rf ${DIR}/joincluster.sh
+sudo rm -rf ${DIR}/kube-flannel.yml
+sudo rm -rf ${DIR}/kubeinit.log
+sudo rm -rf ${DIR}/runc.amd64
+sudo rm -rf ${DIR}/Install.log
+sudo rm -rf ${DIR}/InstallServer.log
+sudo rm -rf ${DIR}/InstallAgent.log
+sudo rm -rf ~/.kube
 
 echo "COMPLETE!"
