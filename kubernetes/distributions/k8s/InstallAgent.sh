@@ -20,6 +20,7 @@ servercniIP="10.244.0.0/16"
 serverPort=("22004" "22001" "22002" "22003")
 # VARIABLE DEFINES
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+cd ${DIR}
 logFile="${DIR}/InstallAgent.log"
 touch ${logFile}
 #logFile="/dev/null"
@@ -43,5 +44,16 @@ sudo chown $(id -u):$(id -g) ${HOME}/.kube/config
 echo "[TASK 3] Add kubeconfig env"
 #export KUBECONFIG=${HOME}/.kube/config
 echo "KUBECONFIG=${HOME}/.kube/config" | sudo tee -a /etc/environment >>${logFile} 2>&1
+
+echo "[TASK 4] Setup bash aliases"
+cat>>${HOME}/.bash_aliases<<EOF
+alias k='kubectl'
+alias kg='kubectl get'
+alias kd='kubectl describe'
+alias kl='sudo kubectl log'
+alias kp='kubectl proxy'
+alias f='flux'
+alias fg='flux get'
+EOF
 
 echo "COMPLETE!"

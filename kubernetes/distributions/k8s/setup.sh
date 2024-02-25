@@ -27,6 +27,7 @@ servercniIP="10.244.0.0/16"
 serverPort=("22004" "22001" "22002" "22003")
 # VARIABLE DEFINES
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+cd ${DIR}
 logFile="${DIR}/setup.log"
 touch ${logFile}
 #logFile="/dev/null"
