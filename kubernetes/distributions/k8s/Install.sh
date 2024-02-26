@@ -15,16 +15,18 @@ cniPluginVer=1.3.0
 flannelVer=0.21.5
 # SERVERS
 serverNumber=0
-serverName=("server1" "server2" "server3")
-serverUser=("server1" "server2" "server3")
-serversshIP=("123.456.78.910" "123.456.78.910" "123.456.78.910")
-serverlocalIP=("192.168.0.215" "192.168.0.225" "192.168.0.226")
+serverName=("server4" "server1" "server2" "server3")
+serverUser=("server4" "server1" "server2" "server3")
+serversshIP=("123.456.78.910" "123.456.78.910" "123.456.78.910" "123.456.78.910")
+serverlocalIP=("192.168.0.227" "192.168.0.215" "192.168.0.225" "192.168.0.226")
 servernetworkIP="192.168.0.0/24"
 servercniIP="10.244.0.0/16"
-serverPort=("22001" "22002" "22003")
+serverPort=("22004" "22001" "22002" "22003")
 # VARIABLE DEFINES
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-logFile="${DIR}/install.log"
+cd ${DIR}
+logFile="${DIR}/Install.log"
+touch ${logFile}
 #logFile="/dev/null"
 
 # commands ending in >>${logFile} 2>&1
@@ -77,8 +79,17 @@ wget --no-verbose https://github.com/containernetworking/plugins/releases/downlo
 sudo mkdir -p /opt/cni/bin
 sudo tar Cxzvf /opt/cni/bin cni-plugins-linux-$(dpkg --print-architecture)-v${cniPluginVer}.tgz >>${logFile} 2>&1
 sudo mkdir -p /etc/containerd
-sudo containerd config default > /etc/containerd/config.toml
+sudo touch /etc/containerd/config.toml
+echo "Changing config.toml ownership from: " >>${logFile} 2>&1
+ls -l /etc/containerd/config.toml >>${logFile} 2>&1
+sudo chown ${serverName[serverNumber]} /etc/containerd/config.toml >>${logFile} 2>&1
+echo "Changed config.toml ownership to: " >>${logFile} 2>&1
+ls -l /etc/containerd/config.toml >>${logFile} 2>&1
+sudo containerd config default > /etc/containerd/config.toml >>${logFile} 2>&1
 sudo sed -i 's/SystemdCgroup \= false/SystemdCgroup \= true/g' /etc/containerd/config.toml
+echo "Changed config.toml ownership back to: " >>${logFile} 2>&1
+sudo chown root /etc/containerd/config.toml >>${logFile} 2>&1
+ls -l /etc/containerd/config.toml >>${logFile} 2>&1
 sudo curl -L https://raw.githubusercontent.com/containerd/containerd/main/containerd.service -o /etc/systemd/system/containerd.service >>${logFile} 2>&1
 sudo systemctl restart containerd
 sudo systemctl daemon-reload
@@ -106,8 +117,9 @@ EOF
 #echo "export TERM=xterm" >> /etc/bash.bashrc
 
 echo "[TASK 9] Update /etc/hosts file"
-for i in ${!serverName[@]}; do
-echo "${serverlocalIP[$i]}   ${serverName[$i]}.local   ${serverName[$i]}" | sudo tee -a /etc/hosts >>${logFile} 2>&1
+echo "${serverlocalIP[0]}   ${serverName[0]}.local   ${serverName[0]}   cluster-endpoint" | sudo tee -a /etc/hosts >>${logFile} 2>&1
+for ((i = 1; i < ${#serverName[@]}; ++i)); do
+  echo "${serverlocalIP[$i]}   ${serverName[$i]}.local   ${serverName[$i]}" | sudo tee -a /etc/hosts >>${logFile} 2>&1
 done
 
 echo "complete install.sh" >>${logFile} 2>&1
