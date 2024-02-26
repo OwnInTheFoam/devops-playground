@@ -41,7 +41,7 @@ for ((i = 1; i < ${#serverName[@]}; ++i)); do
   ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} 'mkdir -p ~/k8s' >>${logFile} 2>&1
   scp -P ${serverPort[$i]} ${DIR}/Install.sh ${serverUser[$i]}@${serverlocalIP[$i]}:~/k8s/Install.sh >>${logFile} 2>&1
   ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "sed -i 's/.*serverNumber=.*/serverNumber=$i/' ~/k8s/Install.sh" >>${logFile} 2>&1
-  ssh -t -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "sudo -S ~/k8s/Install.sh"
+  ssh -t -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "~/k8s/Install.sh"
 done
 
 echo "[TASK 3] Run InstallServer.sh on this server"
@@ -61,7 +61,7 @@ for ((i = 1; i < ${#serverName[@]}; ++i)); do
   echo "          - ${serverName[$i]} InstallAgent.sh"
   scp -P ${serverPort[$i]} ${DIR}/InstallAgent.sh ${serverUser[$i]}@${serverlocalIP[$i]}:~/k8s/InstallAgent.sh >>${logFile} 2>&1
   ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "sed -i 's/.*serverNumber=.*/serverNumber=$i/' ~/k8s/InstallAgent.sh" >>${logFile} 2>&1
-  ssh -t -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "sudo -S ~/k8s/InstallAgent.sh"
+  ssh -t -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "~/k8s/InstallAgent.sh"
 done
 
 echo "COMPLETE"
