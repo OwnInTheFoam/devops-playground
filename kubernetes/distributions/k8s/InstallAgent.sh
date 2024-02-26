@@ -39,7 +39,7 @@ echo "[TASK 2] Setup kubeconfig"
 #sshpass -p "${userPassword}" scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -P ${sshPort} root@server-1.local:/etc/kubernetes/admin.conf /${HOME}/.kube/config 2>>${logFile}
 # todo update incase server is 127.0.0.1 with server ip
 #sed -i 's/^.*server: .*/server:/' /etc/ssh/sshd_config
-sudo chown $(id -u):$(id -g) ${HOME}/.kube/config
+chown $(id -u):$(id -g) ${HOME}/.kube/config
 
 echo "[TASK 3] Add kubeconfig env"
 #export KUBECONFIG=${HOME}/.kube/config

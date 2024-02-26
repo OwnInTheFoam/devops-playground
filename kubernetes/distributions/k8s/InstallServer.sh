@@ -34,15 +34,6 @@ sudo kubeadm init --kubernetes-version=${kubernetesVer} --apiserver-advertise-ad
 echo "[TASK 3] Name the Kubernetes Cluster"
 sudo kubectl config rename-context kubernetes-admin@kubernetes kubernetes >>${logFile} 2>&1
 
-echo "[TASK 4] Deploy CNI plugin (flannel/calico) network"
-#sudo kubectl --kubeconfig=/etc/kubernetes/admin.conf create -f https://docs.projectcalico.org/v${calicoVer}/manifests/calico.yaml >>${logFile} 2>&1
-wget --no-verbose https://raw.githubusercontent.com/flannel-io/flannel/v${flannelVer}/Documentation/kube-flannel.yml >>${logFile} 2>&1
-#sed -i 's/"Network":.*/"Network": "${servercniIP}"/' kube-flannel.yml
-sudo kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f kube-flannel.yml >>${logFile} 2>&1
-
-echo "[TASK 5] Generate and save cluster join command to /joincluster.sh"
-sudo kubeadm token create --print-join-command > /${DIR}/joincluster.sh 2>>${logFile}
-
 echo "[TASK 6] Setup kubeconfig"
 mkdir -p ${HOME}/.kube
 sudo cp -i /etc/kubernetes/admin.conf ${HOME}/.kube/config
@@ -62,6 +53,15 @@ alias kp='sudo kubectl proxy'
 alias f='sudo flux'
 alias fg='sudo flux get'
 EOF
+
+echo "[TASK 4] Deploy CNI plugin (flannel/calico) network"
+#sudo kubectl --kubeconfig=/etc/kubernetes/admin.conf create -f https://docs.projectcalico.org/v${calicoVer}/manifests/calico.yaml >>${logFile} 2>&1
+wget --no-verbose https://raw.githubusercontent.com/flannel-io/flannel/v${flannelVer}/Documentation/kube-flannel.yml >>${logFile} 2>&1
+#sed -i 's/"Network":.*/"Network": "${servercniIP}"/' kube-flannel.yml
+sudo kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f kube-flannel.yml >>${logFile} 2>&1
+
+echo "[TASK 5] Generate and save cluster join command to /joincluster.sh"
+sudo kubeadm token create --print-join-command > /${DIR}/joincluster.sh 2>>${logFile}
 
 echo "COMPLETE!"
 
