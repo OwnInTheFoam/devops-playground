@@ -117,9 +117,9 @@ EOF
 #echo "export TERM=xterm" >> /etc/bash.bashrc
 
 echo "[TASK 9] Update /etc/hosts file"
-echo "${serverlocalIP[0]}   cluster-endpoint" | sudo tee -a /etc/hosts >>${logFile} 2>&1
-for i in ${!serverName[@]}; do
-echo "${serverlocalIP[$i]}   ${serverName[$i]}.local   ${serverName[$i]}" | sudo tee -a /etc/hosts >>${logFile} 2>&1
+echo "${serverlocalIP[0]}   ${serverName[0]}.local   ${serverName[0]}   cluster-endpoint" | sudo tee -a /etc/hosts >>${logFile} 2>&1
+for ((i = 1; i < ${#serverName[@]}; ++i)); do
+  echo "${serverlocalIP[$i]}   ${serverName[$i]}.local   ${serverName[$i]}" | sudo tee -a /etc/hosts >>${logFile} 2>&1
 done
 
 echo "complete install.sh" >>${logFile} 2>&1

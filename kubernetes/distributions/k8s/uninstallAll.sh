@@ -36,7 +36,7 @@ for ((i = 1; i < ${#serverName[@]}; ++i)); do
   ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} 'mkdir -p ~/k8s' >>${logFile} 2>&1
   scp -P ${serverPort[$i]} ${DIR}/uninstall.sh ${serverUser[$i]}@${serverlocalIP[$i]}:~/k8s/uninstall.sh >>${logFile} 2>&1
   ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "sed -i 's/.*serverNumber=.*/serverNumber=$i/' ~/k8s/uninstall.sh" >>${logFile} 2>&1
-  ssh -t -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} " sudo -S ~/k8s/uninstall.sh"
+  ssh -t -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "~/k8s/uninstall.sh"
 done
 
 echo "[TASK 2] Run uninstall.sh on this server"
