@@ -96,3 +96,11 @@ sudo systemctl enable clustershutdown.service --now
 sudo systemctl status clustershutdown
 ```
 
+## ssh proxy pass
+```bash
+# For kubernetes proxy pass
+sudo kubectl proxy --port 30000
+# If you need to port forward from remote machine
+ssh -f server1@IPAddress -p 22001 -L 30000:localhost:30000 -N
+ssh -f server1@IPAddress -p 22001 -L 30000:ContainerIP:30000 -N
+```
