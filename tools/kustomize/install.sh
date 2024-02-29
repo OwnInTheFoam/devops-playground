@@ -11,4 +11,6 @@ sudo bash install_kustomize.sh
 echo "[TASK] Moving binary to packages"
 sudo mv -f kustomize /usr/local/bin
 
+echo "Installed Kustomize ${kustomize version}"
+
 echo "COMPLETE"

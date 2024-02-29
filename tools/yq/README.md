@@ -2,7 +2,7 @@
 
 ## Installation
 ```bash
-wget --no-verbose https://github.com/mikefarah/yq/releases/download/v4.34.2/yq_linux_amd64.tar.gz -O - | tar xz && sudo mv yq_linux_amd64 /usr/bin/yq
+wget --no-verbose https://github.com/mikefarah/yq/releases/download/v4.42.1/yq_linux_amd64.tar.gz -O - | tar xz && sudo mv yq_linux_amd64 /usr/bin/yq
 ```
 
 ## Usage

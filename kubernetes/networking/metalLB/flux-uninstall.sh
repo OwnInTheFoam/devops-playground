@@ -2,7 +2,7 @@
 # chmod u+x uninstall.sh
 
 # DEFINES - versions
-metallbVer=0.13.10
+MLB_VER=0.14.3
 # VARIABLE DEFINES
 startingIP="192.1668.0.240"
 endingIP="192.168.0.250"
@@ -37,6 +37,9 @@ echo "[TASK] Regenerate the kustomize manifest"
 cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources
 rm -f kustomization.yaml
 kustomize create --namespace="flux-system" --autodetect --recursive
+
+echo "[TASK] Delete helm charts"
+rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/metallb
 
 echo "[TASK] Update the git repository"
 cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
