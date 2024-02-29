@@ -9,7 +9,7 @@
 # yq
 
 # DEFINES - versions
-metallbVer=0.13.10 # helm search hub --max-col-width 80 metallb | grep "metallb/metallb"
+MLB_VER=0.14.3 # helm search hub --max-col-width 80 metallb | grep "metallb/metallb"
 # VARIABLE DEFINES
 startingIP="192.168.0.240"
 endingIP="192.168.0.250"
@@ -91,44 +91,57 @@ while sudo flux get all -A | grep -q "Unknown" ; do
   sleep 10
 done
 
-echo "[TASK] metallb values file"
-cat>${HOME}/${K8S_CONTEXT}/envs/metallb-values.yaml<<EOF
-EOF
-# helm show values ingress-nginx/ingress-nginx --version ${nginxChartVer} > /${HOME}/nginx-ingress/values.yaml
+echo "[TASK] Retrieve helm values"
+mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/metallb
+helm repo add metallb https://metallb.github.io/metallb
+helm repo update
+# helm search repo metallb/metallb --versions
+helm show values metallb/metallb --version ${MLB_VER} > /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/metallb/metallb-values.yaml
+helm repo remove metallb
 
-echo "[TASK] Create helmrelease"
-# TODO this should actually be /metallb-system/metallb
-mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb
-mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb/metallb
+echo "[TASK] Update the git repository"
+cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
+git add -A
+git status
+git commit -am "metallb helm default values"
+git push
 
-cat>/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb/namespace.yaml<<EOF
+echo "[TASK] Configure values file"
+# empty
+
+mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb-system
+mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb-system/metallb
+
+echo "[TASK] Create namespace manifest"
+cat>/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb-system/namespace.yaml<<EOF
 apiVersion: v1
 kind: Namespace
 metadata:
   name: metallb-system
 EOF
 
+echo "[TASK] Create helmrelease"
 sudo flux create helmrelease metallb \
   --interval=2h \
   --release-name=metallb \
   --source=HelmRepository/metallb \
-  --chart-version=${metallbVer} \
+  --chart-version=${MLB_VER} \
   --chart=metallb \
   --namespace=flux-system \
   --target-namespace=metallb-system \
   --create-target-namespace \
-  --values=${HOME}/${K8S_CONTEXT}/envs/metallb-values.yaml \
+  --values=${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/metallb/metallb-values.yaml \
   --crds=CreateReplace \
-  --export > ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb/metallb/metallb.yaml
+  --export > ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb-system/metallb/metallb.yaml
 
 echo "[TASK] Update namespace of metallb chart"
-yq e -i '.spec.chart.spec.sourceRef.namespace = "flux-system"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb/metallb/metallb.yaml
+yq e -i '.spec.chart.spec.sourceRef.namespace = "flux-system"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb-system/metallb/metallb.yaml
 
 echo "[TASK] Update kustomize"
-cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb/metallb
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb-system/metallb
 rm -f kustomization.yaml
 kustomize create --autodetect --recursive
-cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb
+cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb-system
 rm -f kustomization.yaml
 kustomize create --autodetect --recursive
 cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common
@@ -139,12 +152,20 @@ echo "[TASK] Update git repository"
 cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 git add -A
 git status
-git commit -am "metallb deployment"
+git commit -am "metallb helm release"
 git push
 
+echo "[TASK] Flux reconcile"
+sudo flux reconcile source git "flux-system"
+sleep 10
+while sudo flux get all -A | grep -q "Unknown" ; do
+  echo "System not ready yet, waiting anoher 10 seconds"
+  sleep 10
+done
+
 echo "[TASK] Create configuration manifests"
-mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb/metallb/config
-cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb/metallb/config/IPAddressPool.yaml<<EOF
+mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb-system/metallb/config
+cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb-system/metallb/config/IPAddressPool.yaml<<EOF
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
@@ -154,7 +175,7 @@ spec:
   addresses:
   - ${startingIP}-${endingIP}
 EOF
-cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb/metallb/config/L2Advertisement.yaml<<EOF
+cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb-system/metallb/config/L2Advertisement.yaml<<EOF
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
 metadata:
@@ -166,17 +187,17 @@ spec:
 EOF
 
 echo "[TASK] Update kustomize"
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb/metallb/config
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb-system/metallb/config
 rm -f kustomization.yaml
 kustomize create --autodetect --recursive
-cd /${HOME}/tigase/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb/metallb/
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb-system/metallb/
 rm -f kustomization.yaml
 kustomize create --autodetect --recursive
 
 echo "[TASK] Update git repository"
 git add -A
 git status
-git commit -am "metallb deployment"
+git commit -am "metallb configuration"
 git push
 
 echo "[TASK] Flux reconcile"

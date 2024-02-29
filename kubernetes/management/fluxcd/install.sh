@@ -11,6 +11,7 @@
 GITHUB_USER=yourUser
 GITHUB_EMAIL=yourEmail
 CLUSTER_REPO=gitops
+# Setup ssh keypair with your git account and the cluster master.
 
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 logFile="${DIR}/install.log"
@@ -35,11 +36,11 @@ for CMD in $REQUIRED_CMDS; do
       exit
   else
     # Get package version
-    VERSION=$("$CMD" -v 2>/dev/null)
+    VERSION=$("$CMD" --version 2>/dev/null)
     if [ -n "$VERSION" ]; then
       echo "  - $CMD is installed. Version: $VERSION"
     else
-      VERSION=$("$CMD" --version 2>/dev/null)
+      VERSION=$("$CMD" -v 2>/dev/null)
       if [ -n "$VERSION" ]; then
         echo "  - $CMD is installed. Version: $VERSION"
       else
@@ -77,6 +78,8 @@ echo -e "    \nPress ENTER to proceed with flux installation, Ctrl-C otherwise..
 read wait
 
 echo "[TASK 2] Flux bootstrap"
+mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 # flux bootstrap should query for token
 #read -s -p "Enter your github personal token: " GITHUB_TOKEN
 #export GITHUB_TOKEN=${GITHUB_TOKEN}
@@ -90,6 +93,9 @@ sudo flux bootstrap github \
   --personal=true \
   --private=true \
   --read-write-key
+
+echo -e "    \nPress ENTER if flux successfully installed and continue, Ctrl-C otherwise..."
+read wait
 
 echo "[TASK 3] Clone flux repository"
 git clone git@github.com:${GITHUB_USER}/${CLUSTER_REPO}.git /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
@@ -123,6 +129,7 @@ mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common
 cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kustomization.yaml<<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: flux-system
 resources:
   - sources
 EOF
@@ -171,7 +178,8 @@ mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/apps
 cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/apps/kustomization.yaml<<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources:
+namespace: flux-system
+resources: []
 EOF
 
 echo "[TASK 6] Adding to git repository"
