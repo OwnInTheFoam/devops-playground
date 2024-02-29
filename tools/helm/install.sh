@@ -3,7 +3,7 @@
 # git add --chmod=+x install.sh
 
 # DEFINES
-HELM_VER="3.12.2"
+HELM_VER="3.14.2"
 
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 logFile="${DIR}/install.log"

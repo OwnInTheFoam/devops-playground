@@ -39,11 +39,11 @@ for CMD in $REQUIRED_CMDS; do
       exit
   else
     # Get package version
-    VERSION=$("$CMD" -v 2>/dev/null)
+    VERSION=$("$CMD" --version 2>/dev/null)
     if [ -n "$VERSION" ]; then
       echo "  - $CMD is installed. Version: $VERSION"
     else
-      VERSION=$("$CMD" --version 2>/dev/null)
+      VERSION=$("$CMD" -v 2>/dev/null)
       if [ -n "$VERSION" ]; then
         echo "  - $CMD is installed. Version: $VERSION"
       else

@@ -2,7 +2,7 @@
 # chmod u+x uninstall.sh
 
 # DEFINES - versions
-metallbVer=0.13.3
+MLB_VER=0.14.3
 # VARIABLE DEFINES
 startingIP="192.1668.0.240"
 endingIP="192.168.0.250"
