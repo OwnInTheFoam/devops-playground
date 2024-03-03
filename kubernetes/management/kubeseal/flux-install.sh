@@ -10,10 +10,10 @@
 # kubectl
 
 # DEFINES
-export SS_VER="2.15.0" #helm search hub --max-col-width 80 sealed-secrets | grep "bitnami-labs"
-export SS_BINARY_VER="0.26.0" #https://github.com/bitnami-labs/sealed-secrets/releases
-export CLUSTER_REPO=gitops
-export CLUSTER_NAME=cluster0
+SS_VER="2.15.0" #helm search hub --max-col-width 80 sealed-secrets | grep "bitnami-labs"
+SS_BINARY_VER="0.26.0" #https://github.com/bitnami-labs/sealed-secrets/releases
+CLUSTER_REPO=gitops
+CLUSTER_NAME=cluster0
 
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 logFile="${DIR}/install.log"

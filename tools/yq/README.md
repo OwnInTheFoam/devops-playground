@@ -18,6 +18,12 @@ yq -i '.additionalArguments += "--log.level=INFO" | .additionalArguments.[] styl
 yq -i '.ports.web.redirectTo="websecure"' /${HOME}/traefik/traefik-values.yaml
 ```
 
+Set a variable with double quotes
+```bash
+yq -i '.prometheus.additionalServiceMonitors[0].name="loki-monitor"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
+yq -i '.prometheus.additionalServiceMonitors[0].name style="double"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
+```
+
 ```bash
 yq eval '.data."config.conf" = (.data."config.conf" | sub("mode: \".*\"", "mode: \"ipvs\""))' -i configmap.yaml
 ```
