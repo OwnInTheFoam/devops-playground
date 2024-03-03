@@ -34,7 +34,7 @@ minikube service prometheus-server-ext
 sudo kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 8080:8080
 curl localhost:8080
 # port forward indirect
-ssh -f server1@IPAddress -p 22001 -L 30000:ContainerIP:30000 -N #if you need to port forward from remote machine
+ssh -f -N -L 30000:localhost:30000 -p 22004 server4@IPAddress #if you need to port forward from remote machine
 sudo kubectl proxy --port 30000
 curl http://localhost:30000/api/v1/namespaces/monitoring/services/kube-prometheus-stack-prometheus:9090/proxy/
 # loadbalancer via metalLB

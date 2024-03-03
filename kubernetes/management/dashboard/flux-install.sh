@@ -9,10 +9,10 @@
 # git
 # kubeseal
 # Load balancer (ingress-nginx)
-# Certificate manager (cert-manager)
+# Certificate manager (kubernetes-dashboard)
 
 # DEFINES
-DA_VER="7.0.3" # helm search hub --max-col-width 80 kubernetes-dashboard | grep "/k8s-dashboard/kubernetes-dashboard"
+DA_VER="6.0.8" # helm search hub --max-col-width 80 dashboard/kubernetes-dashboard | grep "/dashboard/kubernetes-dashboard"
 CLUSTER_REPO=gitops
 CLUSTER_NAME=cluster0
 
@@ -62,7 +62,7 @@ echo "[TASK] Create the helm source"
 sudo flux create source helm kubernetes-dashboard \
   --url="https://kubernetes.github.io/dashboard/" \
   --interval=2h \
-  --export > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/k8s-dashboard.yaml"
+  --export > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/kubernetes-dashboard.yaml"
 
 echo "[TASK] Regenerate the kustomize manifest"
 cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources
@@ -73,7 +73,7 @@ echo "[TASK] Update the git repository"
 cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 git add -A
 git status
-git commit -am "k8s dashboard create source helm"
+git commit -am "kubernetes dashboard create source helm"
 git push
 
 echo "[TASK] Reconcile flux system"
@@ -84,38 +84,88 @@ while sudo flux get all -A | grep -q "Unknown" ; do
   sleep 10
 done
 
-echo "[TASK] Configure values file"
-mkdir -p ${HOME}/${K8S_CONTEXT}/envs
-cat>${HOME}/${K8S_CONTEXT}/envs/k8s-dashboard_values.yaml<<EOF
-## Optional Cert Manager sub-chart configuration
-## Enable this if you don't already have cert-manager enabled on your cluster.
-cert-manager:
-  enabled: false
-## Optional Nginx Ingress sub-chart configuration
-## Enable this if you don't already have nginx-ingress enabled on your cluster.
-nginx:
-  enabled: false
-EOF
+echo "[TASK] Retrieve helm values"
+mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/kubernetes-dashboard
+helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard
+helm repo update
+# helm search repo kubernetes-dashboard/kubernetes-dashboard --versions
+helm show values kubernetes-dashboard/kubernetes-dashboard --version ${DA_VER} > /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/kubernetes-dashboard/kubernetes-dashboard-values.yaml
+helm repo remove kubernetes-dashboard
 
-mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/k8s-dashboard
-mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/k8s-dashboard/k8s-dashboard
+echo "[TASK] Update the git repository"
+cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
+git add -A
+git status
+git commit -am "kubernetes-dashboard helm default values"
+git push
+
+echo "[TASK] Configure values file"
+yq -i '.cert-manager.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/kubernetes-dashboard/kubernetes-dashboard-values.yaml
+yq -i '.nginx.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/kubernetes-dashboard/kubernetes-dashboard-values.yaml
+yq -i '.ingress.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/kubernetes-dashboard/kubernetes-dashboard-values.yaml
+
+mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kubernetes-dashboard
+mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kubernetes-dashboard/kubernetes-dashboard
 
 echo "[TASK] Configure namespace"
-cat>"${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/k8s-dashboard/namespace.yaml"<<EOF
+cat>"${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kubernetes-dashboard/namespace.yaml"<<EOF
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: k8s-dashboard
+  name: kubernetes-dashboard
 EOF
 
+echo "[TASK] Create helmrelease"
+sudo flux create helmrelease kubernetes-dashboard \
+  --interval=2h \
+  --release-name=kubernetes-dashboard \
+  --source=HelmRepository/kubernetes-dashboard \
+  --chart-version=${DA_VER} \
+  --chart=kubernetes-dashboard \
+  --namespace=flux-system \
+  --target-namespace=kubernetes-dashboard \
+  --values=/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/kubernetes-dashboard/kubernetes-dashboard-values.yaml \
+  --create-target-namespace \
+  --crds=CreateReplace \
+  --export > /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kubernetes-dashboard/kubernetes-dashboard/kubernetes-dashboard.yaml
+
+echo "[TASK] Update namespace of kubernetes-dashboard chart"
+yq e -i '.spec.chart.spec.sourceRef.namespace = "flux-system"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kubernetes-dashboard/kubernetes-dashboard/kubernetes-dashboard.yaml
+
+echo "[TASK] Update kustomize"
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kubernetes-dashboard/kubernetes-dashboard/
+rm -f kustomization.yaml
+kustomize create --autodetect --recursive
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kubernetes-dashboard/
+rm -f kustomization.yaml
+kustomize create  --autodetect --recursive
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/
+rm -f kustomization.yaml
+kustomize create --autodetect --recursive
+
+echo "[TASK] Update git repository"
+cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
+git add -A
+git status
+git commit -am "kubernetes-dashboard deployment"
+git push
+
+echo "[TASK] Flux reconcile"
+sudo flux reconcile source git "flux-system"
+sleep 10
+while sudo flux get all -A | grep -q "Unknown" ; do
+  echo "System not ready yet, waiting anoher 10 seconds"
+  sleep 10
+done
+
 echo "[TASK] Configure ServiceAccount and RoleBinding"
-cat>"${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/k8s-dashboard/k8s-dashboard/dashboard-service-account.yaml"<<EOF
+cat>"${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kubernetes-dashboard/kubernetes-dashboard/dashboard-service-account.yaml"<<EOF
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: dashboard-admin
-  namespace: k8s-dashboard
+  namespace: kubernetes-dashboard
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -128,60 +178,11 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: dashboard-admin
-    namespace: k8s-dashboard
-EOF
-
-echo "[TASK] Create helmrelease"
-sudo flux create helmrelease kubernetes-dashboard \
-  --interval=2h \
-  --release-name=k8s-dashboard \
-  --source=HelmRepository/kubernetes-dashboard \
-  --chart-version=${DA_VER} \
-  --chart=kubernetes-dashboard \
-  --namespace=flux-system \
-  --target-namespace=k8s-dashboard \
-  --values=/${HOME}/${K8S_CONTEXT}/envs/k8s-dashboard_values.yaml \
-  --create-target-namespace \
-  --crds=CreateReplace \
-  --export > /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/k8s-dashboard/k8s-dashboard/k8s-dashboard.yaml
-
-echo "[TASK] Update namespace of k8s-dashboard chart"
-yq e -i '.spec.chart.spec.sourceRef.namespace = "flux-system"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/k8s-dashboard/k8s-dashboard/k8s-dashboard.yaml
-
-cat><EOF
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: kubernetes-dashboard-stg
-  namespace: kube-system
-  labels:
-    k8s-app: kubernetes-dashboard
-  annotations:
-    kubernetes.io/ingress.class: nginx
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/secure-backends: "true"
-spec:
-  tls:
-  - hosts:
-    - your.awesome.host
-    secretName: certificate-stg-dashboard
-  rules:
-  - host: your.awesome.host
-    http:
-      paths:
-      - backend:
-          serviceName: kubernetes-dashboard
-          servicePort: 443
+    namespace: kubernetes-dashboard
 EOF
 
 echo "[TASK] Update kustomize"
-cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/k8s-dashboard/k8s-dashboard
-rm -f kustomization.yaml
-kustomize create --autodetect --recursive
-cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/k8s-dashboard
-rm -f kustomization.yaml
-kustomize create  --autodetect --recursive
-cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kubernetes-dashboard/kubernetes-dashboard/
 rm -f kustomization.yaml
 kustomize create --autodetect --recursive
 
@@ -189,7 +190,7 @@ echo "[TASK] Update git repository"
 cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 git add -A
 git status
-git commit -am "k8s-dashboard deployment"
+git commit -am "kubernetes-dashboard service account"
 git push
 
 echo "[TASK] Flux reconcile"
@@ -200,35 +201,35 @@ while sudo flux get all -A | grep -q "Unknown" ; do
   sleep 10
 done
 
-#echo "[TASK]  secrets"
-#DA_TOKEN=`kubectl -n ${DA_TARGET_NAMESPACE} get secret \
-#  $(kubectl -n ${DA_TARGET_NAMESPACE} get sa/${DA_USER} -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"`
-#update_k8s_secrets "dashboard-token" "${DA_TOKEN}"
-#
-#sudo kubectl create secret generic "cloudflare-token-secret" \
-#  --namespace "cert-manager" \
-#  --from-literal=cloudflare-token="${CLOUDFLARE_SECRET_KEY}" \
-#  --dry-run=client -o yaml | kubeseal --cert="/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/pub-sealed-secrets-cluster0.pem" \
-#  --format=yaml > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/cloudflare-solver-secret.yaml"
-#
-#echo "[TASK] Update kustomize"
-#cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager
-#rm -f kustomization.yaml
-#kustomize create --autodetect --recursive
-#
-#echo "[TASK] Update git repository"
-#cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
-#git add -A
-#git status
-#git commit -am "k8s-dashboard deployment"
-#git push
-#
-#echo "[TASK] Flux reconcile"
-#sudo flux reconcile source git "flux-system"
-#sleep 10
-#while sudo flux get all -A | grep -q "Unknown" ; do
-#  echo "System not ready yet, waiting anoher 10 seconds"
-#  sleep 10
-#done
+echo "[TASK] Create long lived bearer token secret"
+mkdir -p ${HOME}/${K8S_CONTEXT}/tmp/dashboard
+sudo kubectl -n kubernetes-dashboard create token dashboard-admin  >> /${HOME}/${K8S_CONTEXT}/tmp/dashboard/token
+sudo kubectl create secret generic "dashboard-token-secret" \
+  --namespace "kubernetes-dashboard" \
+  --type="kubernetes.io/service-account-token" \
+  --from-file=/${HOME}/${K8S_CONTEXT}/tmp/dashboard/token \
+  --dry-run=client -o yaml | kubeseal --cert="/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/pub-sealed-secrets-${CLUSTER_NAME}.pem" \
+  --format=yaml > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kubernetes-dashboard/kubernetes-dashboard/dashboard-admin-secret.yaml"
+#  --annotations='kubernetes.io/service-account.name: "dashboard-admin"' \
+
+echo "[TASK] Update kustomize"
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kubernetes-dashboard/kubernetes-dashboard
+rm -f kustomization.yaml
+kustomize create --autodetect --recursive
+
+echo "[TASK] Update git repository"
+cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
+git add -A
+git status
+git commit -am "kubernetes-dashboard account secret"
+git push
+
+echo "[TASK] Flux reconcile"
+sudo flux reconcile source git "flux-system"
+sleep 10
+while sudo flux get all -A | grep -q "Unknown" ; do
+ echo "System not ready yet, waiting anoher 10 seconds"
+ sleep 10
+done
 
 echo "COMPLETE"

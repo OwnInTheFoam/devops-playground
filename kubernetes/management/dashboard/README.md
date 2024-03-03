@@ -182,3 +182,9 @@ You'll be able to access it at
 https://localhost:8443
 ```
 
+Alternative with remote access:
+```bash
+sudo kubectl proxy --port 30000
+ssh -f -N -L 30000:localhost:30000 -p 22004 server4@IPAddress #if you need to port forward from remote machine
+http://localhost:30000/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:443/proxy/
+```

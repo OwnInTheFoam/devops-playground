@@ -2,6 +2,9 @@
 # chmod u+x install.sh
 # git add --chmod=+x install.sh
 
+CLUSTER_REPO=gitops
+CLUSTER_NAME=cluster0
+
 # DEFINES
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 logFile="${DIR}/uninstall.log"
@@ -11,7 +14,7 @@ cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 
 echo "[TASK 1] Removing manifests"
 echo "         - common.yaml"
-rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/cluster0/common.yaml
+rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/${CLUSTER_NAME}/common.yaml
 
 echo "         - common/kustomization.yaml"
 rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kustomization.yaml
@@ -23,7 +26,7 @@ echo "         - sources/chartmuseum.yaml"
 rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/chartmuseum.yaml
 
 echo "         - apps.yaml"
-rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/cluster0/apps.yaml
+rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/${CLUSTER_NAME}/apps.yaml
 
 echo "         - apps/kustomization.yaml"
 rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/apps/kustomization.yaml

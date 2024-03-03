@@ -11,6 +11,7 @@
 GITHUB_USER=yourUser
 GITHUB_EMAIL=yourEmail
 CLUSTER_REPO=gitops
+CLUSTER_NAME=cluster0
 # Setup ssh keypair with your git account and the cluster master.
 
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -88,7 +89,7 @@ sudo flux bootstrap github \
   --owner=${GITHUB_USER} \
   --repository=${CLUSTER_REPO} \
   --branch=master \
-  --path=clusters/cluster0 \
+  --path=clusters/${CLUSTER_NAME} \
   --token-auth \
   --personal=true \
   --private=true \
@@ -107,8 +108,8 @@ git config user.email "$GITHUB_EMAIL"
 
 echo "[TASK 5] Creating manifests"
 echo "         - common.yaml"
-mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/cluster0
-cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/cluster0/common.yaml<<EOF
+mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/${CLUSTER_NAME}
+cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/${CLUSTER_NAME}/common.yaml<<EOF
 apiVersion: kustomize.toolkit.fluxcd.io/v1beta1
 kind: Kustomization
 metadata:
@@ -157,7 +158,7 @@ spec:
 EOF
 
 echo "         - apps.yaml"
-cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/cluster0/apps.yaml<<EOF
+cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/${CLUSTER_NAME}/apps.yaml<<EOF
 apiVersion: kustomize.toolkit.fluxcd.io/v1beta1
 kind: Kustomization
 metadata:
