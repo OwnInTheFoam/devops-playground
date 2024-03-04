@@ -346,6 +346,7 @@ spec:
 sudo kubectl proxy --port 30000
 ssh -f -N -L 30000:localhost:30000 -p 22004 server4@IPAddress #if you need to port forward from remote machine
 http://localhost:30000/api/v1/namespaces/longhorn-system/services/http:longhorn-frontend:80/proxy/
+ps aux | grep ssh # see ports forwarded
 ```
 
 ### Uninstallation
@@ -374,7 +375,7 @@ kubectl get all -A | grep longhorn
 ## Run in worker node
 sudo fdisk /dev/sda
 sudo mkfs.ext4 /dev/sda
-mkdir /mnt/disk1
+sudo mkdir /mnt/disk1
 sudo mount /dev/sda /mnt/disk1
 ```
 

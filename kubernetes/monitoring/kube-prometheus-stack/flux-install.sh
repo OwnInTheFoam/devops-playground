@@ -127,10 +127,10 @@ yq -i '.prometheus.prometheusSpec.volumeClaimTemplate.spec.resources.requests.st
 yq -i '.prometheus.prometheusSpec.volumeClaimTemplate.spec.storageClassName="longhorn"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.prometheusOperator.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 
-echo "[TASK] Create helmrelease"
 mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring
 mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring/kube-prometheus-stack
 
+echo "[TASK] Create namespace"
 cat>/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring/namespace.yaml<<EOF
 apiVersion: v1
 kind: Namespace
@@ -138,6 +138,23 @@ metadata:
   name: monitoring
 EOF
 
+echo "[TASK] Create the grafana secret and update the manifest"
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
+read -s -p "Enter your grafana user: " GRAFANA_ADMIN_USER
+read -s -p "Enter your grafana password: " GRAFANA_ADMIN_PASSWORD
+
+sudo kubectl create secret generic "kube-prometheus-credentials" \
+ --namespace "monitoring" \
+ --from-literal=grafana_admin_user="${GRAFANA_ADMIN_USER}" \
+ --from-literal=grafana_admin_password="${GRAFANA_ADMIN_PASSWORD}" \
+ --dry-run=client -o yaml | kubeseal --cert="/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/pub-sealed-secrets-${CLUSTER_NAME}.pem" \
+ --format=yaml > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring/kube-prometheus-stack/kube-prometheus-credentials-sealed.yaml"
+
+yq e -i '.grafana.admin.existingSecret = "kube-prometheus-credentials"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
+yq e -i '.grafana.admin.userKey = "grafana_admin_user"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
+yq e -i '.grafana.admin.passwordKey = "grafana_admin_password"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
+
+echo "[TASK] Create helmrelease"
 sudo flux create helmrelease kube-prometheus-stack \
   --interval=2h \
   --release-name=kube-prometheus-stack \
@@ -170,48 +187,6 @@ cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 git add -A
 git status
 git commit -am "kube-prometheus-stack deployment"
-git push
-
-echo "[TASK] Flux reconcile"
-sudo flux reconcile source git "flux-system"
-sleep 10
-while sudo flux get all -A | grep -q "Unknown" ; do
-  echo "System not ready yet, waiting anoher 10 seconds"
-  sleep 10
-done
-
-echo "[TASK] Create the grafana secret and update the manifest"
-cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
-read -s -p "Enter your grafana user: " GRAFANA_ADMIN_USER
-read -s -p "Enter your grafana password: " GRAFANA_ADMIN_PASSWORD
-
-sudo kubectl create secret generic "kube-prometheus-credentials" \
-  --namespace "monitoring" \
-  --from-literal=grafana_admin_user="${GRAFANA_ADMIN_USER}" \
-  --from-literal=grafana_admin_password="${GRAFANA_ADMIN_PASSWORD}" \
-  --dry-run=client -o yaml | kubeseal --cert="/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/pub-sealed-secrets-${CLUSTER_NAME}.pem" \
-  --format=yaml > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring/kube-prometheus-stack/kube-prometheus-credentials-sealed.yaml"
-
-yq e -i '.spec.chart.values.grafana.admin.existingSecret = "kube-prometheus-credentials"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring/kube-prometheus-stack/kube-prometheus-stack.yaml
-yq e -i '.spec.chart.values.grafana.admin.userKey = "grafana_admin_user"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring/kube-prometheus-stack/kube-prometheus-stack.yaml
-yq e -i '.spec.chart.values.grafana.admin.passwordKey = "grafana_admin_password"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring/kube-prometheus-stack/kube-prometheus-stack.yaml
-
-echo "[TASK] Update kustomize"
-cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring/kube-prometheus-stack
-rm -f kustomization.yaml
-kustomize create --autodetect --recursive
-cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring
-rm -f kustomization.yaml
-kustomize create  --autodetect --recursive
-cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common
-rm -f kustomization.yaml
-kustomize create --autodetect --recursive
-
-echo "[TASK] Update git repository"
-cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
-git add -A
-git status
-git commit -am "kube-prometheus-stack secret configuration"
 git push
 
 echo "[TASK] Flux reconcile"
