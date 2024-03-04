@@ -33,6 +33,9 @@ cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources
 rm -f kustomization.yaml
 kustomize create --namespace="flux-system" --autodetect --recursive
 
+echo "[TASK] Remove ingress-nginx manifest directory"
+rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/longhorn
+
 echo "[TASK] Update the git repository"
 cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 git add -A

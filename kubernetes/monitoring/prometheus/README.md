@@ -37,6 +37,7 @@ curl localhost:8080
 ssh -f -N -L 30000:localhost:30000 -p 22004 server4@IPAddress #if you need to port forward from remote machine
 sudo kubectl proxy --port 30000
 curl http://localhost:30000/api/v1/namespaces/monitoring/services/kube-prometheus-stack-prometheus:9090/proxy/
+ps aux | grep ssh # see ports forwarded
 # loadbalancer via metalLB
 nano /tmp/prometheus-values.yaml
 service:

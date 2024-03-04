@@ -102,4 +102,5 @@ sudo systemctl status clustershutdown
 sudo kubectl proxy --port 30000
 # If you need to port forward from remote machine
 ssh -f -N -L 30000:localhost:30000 -p 22004 server4@IPAddress
+ps aux | grep ssh # see ports forwarded
 ```
