@@ -344,7 +344,10 @@ spec:
 ### Longhorn web UI
 ```bash
 sudo kubectl proxy --port 30000
-ssh -f server1@IPAddress -p 22001 -L 30000:ContainerIP:30000 -N #if you need to port forward from remote machine
+# If you need to port forward from remote machine to the proxy
+ssh -f server1@IPAddress -p 22001 -L localhost:30000:localhost:30000 -N
+# If you need to port forward from remote machine directly to service container IP
+ssh -f server1@IPAddress -p 22001 -L 30000:ContainerIP:30000 -N
 http://localhost:30000/api/v1/namespaces/longhorn-system/services/http:longhorn-frontend:80/proxy/
 ```
 
