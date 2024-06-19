@@ -380,3 +380,19 @@ sudo mount /dev/sda /mnt/disk1
 
 In longhorn GUI `Node > Edit node and disks > Add disk`.
 Use the above mount path for the path field.
+
+Ensure disk is mount after boot
+```bash
+# Make a backup incase something goes wrong
+sudo cp /etc/fstab /etc/fstab.bak
+# Edit fstab
+sudo nano /etc/fstab
+# Add the following line
+/dev/sda     /mnt/disk1     ext4     defaults     0     0
+# Test the mounting by running
+sudo mount -a
+# Reboot and ensure correct mounting before deleting backup
+sudo reboot
+df -h
+sudo rm -rf /etc/fstab.bak
+```
