@@ -18,8 +18,17 @@ Dev ops playground for tutorials, guides and exercises.
 - [Dashboard](https://github.com/OwnInTheFoam/devops-playground/blob/master/kubernetes/management/dashboard/README.md)
 - [Kube prometheus stack](https://github.com/OwnInTheFoam/devops-playground/tree/master/kubernetes/monitoring/kube-prometheus-stack)
 - [Loki](https://github.com/OwnInTheFoam/devops-playground/tree/master/kubernetes/monitoring/loki)
+- Promtail ?
 
 # Extras
 - [Mailu](https://github.com/OwnInTheFoam/devops-playground/tree/master/containers/mailu)
 - TODO Media server (photoprism, Piwigo, Immich)
 - 
+
+# Network Ports
+- 30000 proxy
+- 30001 longhorn
+- 30002 dashboard
+- 30003 grafana
+- 30004 prometheus
+- 30005 alert manager
