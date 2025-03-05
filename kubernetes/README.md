@@ -45,3 +45,14 @@ kubectl exec --stdin --tty nginx-xxxxx-xx -- /bin/bash
 kubectl exec nginx -- ls /
 kubectl exec -i -t nginx --container my-container -- /bin/bash
 ```
+
+## Troubleshoot
+You may get the following after some time:
+```sh
+E0228 13:56:05.869708   97475 memcache.go:265] couldn't get current server API group list: Get "https://cluster-endpoint:6443/api?timeout=32s": tls: failed to verify certificate: x509: certificate has expired or is not yet valid: current time 2025-02-28T13:56:05+10:00 is after 2025-02-25T06:15:06Z
+```
+The solution is to renew the certificates:
+```sh
+sudo kubeadm certs renew all
+sudo kubeadm certs check-expiration
+```
