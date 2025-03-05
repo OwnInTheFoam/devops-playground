@@ -2,7 +2,7 @@
 # chmod u+x install.sh
 
 # DEFINES - versions
-metallbVer=0.13.10
+MLB_VER=0.14.3
 # VARIABLE DEFINES
 startingIP="192.168.0.240"
 endingIP="192.168.0.250"
@@ -12,7 +12,7 @@ logFile="${HOME}/metallb/install.log"
 mkdir -p /${HOME}/metallb
 
 echo "[TASK] Get metllb-values manifest and apply"
-wget --no-verbose -O /${HOME}/metallb/metallb-values.yaml https://raw.githubusercontent.com/metallb/metallb/v${metallbVer}/config/manifests/metallb-native.yaml >>${logFile} 2>&1
+wget --no-verbose -O /${HOME}/metallb/metallb-values.yaml https://raw.githubusercontent.com/metallb/metallb/v${MLB_VER}/config/manifests/metallb-native.yaml >>${logFile} 2>&1
 kubectl apply -f /${HOME}/metallb/metallb-values.yaml >>${logFile} 2>&1
 
 echo "[TASK] Wait for metallb deployment running"

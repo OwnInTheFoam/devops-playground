@@ -344,11 +344,14 @@ spec:
 ### Longhorn web UI
 ```bash
 sudo kubectl proxy --port 30000
+ssh -f -N -L 30000:localhost:30000 -p 22004 server4@IPAddress #if you need to port forward from remote machine
+
 # If you need to port forward from remote machine to the proxy
 ssh -f server1@IPAddress -p 22001 -L localhost:30000:localhost:30000 -N
 # If you need to port forward from remote machine directly to service container IP
 ssh -f server1@IPAddress -p 22001 -L 30000:ContainerIP:30000 -N
 http://localhost:30000/api/v1/namespaces/longhorn-system/services/http:longhorn-frontend:80/proxy/
+ps aux | grep ssh # see ports forwarded
 ```
 
 ### Uninstallation
@@ -377,7 +380,7 @@ kubectl get all -A | grep longhorn
 ## Run in worker node
 sudo fdisk /dev/sda
 sudo mkfs.ext4 /dev/sda
-mkdir /mnt/disk1
+sudo mkdir /mnt/disk1
 sudo mount /dev/sda /mnt/disk1
 ```
 

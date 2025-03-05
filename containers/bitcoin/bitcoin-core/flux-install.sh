@@ -9,10 +9,9 @@
 # git
 # kubeseal
 # Load balancer (ingress-nginx)
-# Certificate manager (kubernetes-dashboard)
 
 # DEFINES
-DA_VER="6.0.8" # helm search hub --max-col-width 80 dashboard/kubernetes-dashboard | grep "/dashboard/kubernetes-dashboard"
+BTC_VER="1.1.13" # helm search hub --max-col-width 80 bitcoind | grep "/bitcoind/bitcoind"
 CLUSTER_REPO=gitops
 CLUSTER_NAME=cluster0
 

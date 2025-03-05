@@ -11,6 +11,8 @@
 GITHUB_USER=yourUser
 GITHUB_EMAIL=yourEmail
 CLUSTER_REPO=gitops
+CLUSTER_NAME=cluster0
+# Setup ssh keypair with your git account and the cluster master.
 
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 logFile="${DIR}/install.log"
@@ -35,11 +37,11 @@ for CMD in $REQUIRED_CMDS; do
       exit
   else
     # Get package version
-    VERSION=$("$CMD" -v 2>/dev/null)
+    VERSION=$("$CMD" --version 2>/dev/null)
     if [ -n "$VERSION" ]; then
       echo "  - $CMD is installed. Version: $VERSION"
     else
-      VERSION=$("$CMD" --version 2>/dev/null)
+      VERSION=$("$CMD" -v 2>/dev/null)
       if [ -n "$VERSION" ]; then
         echo "  - $CMD is installed. Version: $VERSION"
       else
@@ -77,6 +79,8 @@ echo -e "    \nPress ENTER to proceed with flux installation, Ctrl-C otherwise..
 read wait
 
 echo "[TASK 2] Flux bootstrap"
+mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
+cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 # flux bootstrap should query for token
 #read -s -p "Enter your github personal token: " GITHUB_TOKEN
 #export GITHUB_TOKEN=${GITHUB_TOKEN}
@@ -85,11 +89,14 @@ sudo flux bootstrap github \
   --owner=${GITHUB_USER} \
   --repository=${CLUSTER_REPO} \
   --branch=master \
-  --path=clusters/cluster0 \
+  --path=clusters/${CLUSTER_NAME} \
   --token-auth \
   --personal=true \
   --private=true \
   --read-write-key
+
+echo -e "    \nPress ENTER if flux successfully installed and continue, Ctrl-C otherwise..."
+read wait
 
 echo "[TASK 3] Clone flux repository"
 git clone git@github.com:${GITHUB_USER}/${CLUSTER_REPO}.git /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
@@ -101,8 +108,8 @@ git config user.email "$GITHUB_EMAIL"
 
 echo "[TASK 5] Creating manifests"
 echo "         - common.yaml"
-mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/cluster0
-cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/cluster0/common.yaml<<EOF
+mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/${CLUSTER_NAME}
+cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/${CLUSTER_NAME}/common.yaml<<EOF
 apiVersion: kustomize.toolkit.fluxcd.io/v1beta1
 kind: Kustomization
 metadata:
@@ -123,6 +130,7 @@ mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common
 cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/kustomization.yaml<<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: flux-system
 resources:
   - sources
 EOF
@@ -150,7 +158,7 @@ spec:
 EOF
 
 echo "         - apps.yaml"
-cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/cluster0/apps.yaml<<EOF
+cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/${CLUSTER_NAME}/apps.yaml<<EOF
 apiVersion: kustomize.toolkit.fluxcd.io/v1beta1
 kind: Kustomization
 metadata:
@@ -171,7 +179,8 @@ mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/apps
 cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/apps/kustomization.yaml<<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources:
+namespace: flux-system
+resources: []
 EOF
 
 echo "[TASK 6] Adding to git repository"
