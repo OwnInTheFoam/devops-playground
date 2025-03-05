@@ -1,11 +1,8 @@
 #!/bin/bash
-# chmod u+x uninstall.sh
+# chmod u+x install.sh
+# git add --chmod=+x install.sh
 
-# DEFINES - versions
-MLB_VER=0.14.3
-# VARIABLE DEFINES
-startingIP="192.1668.0.240"
-endingIP="192.168.0.250"
+# DEFINES
 CLUSTER_REPO=gitops
 CLUSTER_NAME=cluster0
 
@@ -13,39 +10,36 @@ DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 logFile="${DIR}/install.log"
 #logFile="/dev/null"
 
-echo "[TASK] Remove metallb manifest directory"
-rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/metallb
+echo "[TASK] Remove loki manifest directory"
+rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring/loki
 
 echo "[TASK] Revert kustomize"
-cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/
+cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring/
 rm -f kustomization.yaml
 kustomize create --autodetect --recursive
 
 echo "[TASK] Delete helmrelease"
-sudo flux delete helmrelease metallb
+sudo flux delete helmrelease loki
 
 echo "[TASK] Delete the helm source"
-sudo flux delete source helm metallb
+sudo flux delete source helm loki
 
-echo "[TASK] Delete namespace"
-sudo kubectl delete namespace metallb-system
+echo "[TASK] Remove loki source"
+rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/loki.yaml
 
-echo "[TASK] Remove metallb source"
-rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/metallb.yaml
+echo "[TASK] Remove loki manifest directory"
+rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/loki
 
 echo "[TASK] Regenerate the kustomize manifest"
 cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources
 rm -f kustomization.yaml
 kustomize create --namespace="flux-system" --autodetect --recursive
 
-echo "[TASK] Delete helm charts"
-rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/metallb
-
 echo "[TASK] Update the git repository"
 cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 git add -A
 git status
-git commit -am "metallb delete"
+git commit -am "loki delete"
 git push
 
 echo "[TASK] Reconcile flux system"

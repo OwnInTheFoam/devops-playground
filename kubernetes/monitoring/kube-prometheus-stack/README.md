@@ -165,20 +165,21 @@ helm install prometheus prometheus-community/kube-prometheus-stack --version 43.
 1. Port forwarding direct
 
 ```bash
-kubectl -n monitoring get pods -o wide | grep grafana
-kubectl -n monitoring port-forward svc/grafana-84df59b9cb-zds8x 52222:3000
-kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 52222:9090
-curl localhost:52222
+kubectl -n monitoring get svc -o wide | grep grafana
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 30003:80
+ssh -f -N -L 30003:localhost:30003 -p 22004 server4@IPAddress #if you need to port forward from remote machine
+curl localhost:30003
 ```
 
 2. Port forwarding indirect
-
+Note using this proxy may not work. Use a direct port forwarding to the service.
 ```bash
 sudo kubectl proxy --port 30000
-ssh -f server1@IPAddress -p 22001 -L 30000:ContainerIP:30000 -N #if you need to port forward from remote machine
-http://localhost:30000/dssapi/v1/namespaces/monitoring/services/kube-prometheus-stack-grafana:80/proxy/
+ssh -f -N -L 30000:localhost:30000 -p 22004 server4@IPAddress #if you need to port forward from remote machine
+http://localhost:30000/api/v1/namespaces/monitoring/services/kube-prometheus-stack-grafana:80/proxy/
 http://localhost:30000/api/v1/namespaces/monitoring/services/kube-prometheus-stack-prometheus:9090/proxy/
 http://localhost:30000/api/v1/namespaces/monitoring/services/kube-prometheus-stack-alertmanager:9093/proxy/
+ps aux | grep ssh # see ports forwarded
 ```
 
 2. IngressRoute

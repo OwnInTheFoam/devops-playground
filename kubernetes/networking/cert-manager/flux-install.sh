@@ -12,7 +12,7 @@
 # Persistant storage (longhorn)
 
 # DEFINES
-CM_VER="1.12.3" # helm search hub --max-col-width 80 cert-manager | grep "/cert-manager/cert-manager"
+CM_VER="1.14.3" # helm search hub --max-col-width 80 cert-manager | grep "/cert-manager/cert-manager"
 CLUSTER_REPO=gitops
 CLUSTER_NAME=cluster0
 
@@ -32,18 +32,18 @@ for VAR in "${REQUIRED_VARS[@]}"; do
 done
 
 echo "[CHECK] Required packages installed"
-REQUIRED_CMDS="flux kustomize git kubeseal"
+REQUIRED_CMDS="flux kustomize git kubeseal yq"
 for CMD in $REQUIRED_CMDS; do
   if ! command -v "$CMD" &> /dev/null; then
       echo "  - $CMD could not be found! Exiting..."
       exit
   else
     # Get package version
-    VERSION=$("$CMD" -v 2>/dev/null)
+    VERSION=$("$CMD" --version 2>/dev/null)
     if [ -n "$VERSION" ]; then
       echo "  - $CMD is installed. Version: $VERSION"
     else
-      VERSION=$("$CMD" --version 2>/dev/null)
+      VERSION=$("$CMD" -v 2>/dev/null)
       if [ -n "$VERSION" ]; then
         echo "  - $CMD is installed. Version: $VERSION"
       else
@@ -85,7 +85,7 @@ echo "[TASK] Update the git repository"
 cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 git add -A
 git status
-git commit -am "ingress-nginx create source helm"
+git commit -am "cert-manager create source helm"
 git push
 
 echo "[TASK] Reconcile flux system"
@@ -96,19 +96,29 @@ while sudo flux get all -A | grep -q "Unknown" ; do
   sleep 10
 done
 
-echo "[TASK] Configure values file"
-mkdir -p ${HOME}/${K8S_CONTEXT}/envs
-cat>${HOME}/${K8S_CONTEXT}/envs/cert-man_values.yaml<<EOF
-    installCRDs: true
-    prometheus:
-      # set to true if you want to enable prometheus monitoring for cert-manager
-      enabled: false
-EOF
+echo "[TASK] Retrieve helm values"
+mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/cert-manager
+helm repo add cert-manager https://charts.jetstack.io
+helm repo update
+# helm search repo cert-manager/cert-manager --versions
+helm show values cert-manager/cert-manager --version ${CM_VER} > /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/cert-manager/cert-manager-values.yaml
+helm repo remove cert-manager
 
-echo "[TASK] Create helmrelease"
+echo "[TASK] Update the git repository"
+cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
+git add -A
+git status
+git commit -am "cert-manager helm default values"
+git push
+
+echo "[TASK] Configure values file"
+yq -i '.installCRDs=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/cert-manager/cert-manager-values.yaml
+yq -i '.prometheus.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/cert-manager/cert-manager-values.yaml
+
 mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager
 mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager
 
+echo "[TASK] Create namespace"
 cat>/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/namespace.yaml<<EOF
 apiVersion: v1
 kind: Namespace
@@ -116,6 +126,7 @@ metadata:
   name: cert-manager
 EOF
 
+echo "[TASK] Create helmrelease"
 sudo flux create helmrelease cert-manager \
   --interval=2h \
   --release-name=cert-manager \
@@ -124,7 +135,7 @@ sudo flux create helmrelease cert-manager \
   --chart=cert-manager \
   --namespace=flux-system \
   --target-namespace=cert-manager \
-  --values=/${HOME}/${K8S_CONTEXT}/envs/cert-man_values.yaml \
+  --values=/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/cert-manager/cert-manager-values.yaml \
   --create-target-namespace \
   --crds=CreateReplace \
   --export > /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/cert-manager.yaml
@@ -147,7 +158,7 @@ echo "[TASK] Update git repository"
 cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 git add -A
 git status
-git commit -am "ingress-nginx deployment"
+git commit -am "cert-manager deployment"
 git push
 
 echo "[TASK] Flux reconcile"
@@ -162,6 +173,10 @@ echo "[TASK] Cert Manager Configuration"
 read -s -p "Enter your SSL (cloudflare) email: " SSL_EMAIL
 read -s -p "Enter your cloudflare domain: " CLOUDFLARE_DOMAIN
 read -s -p "Enter your cloudflare secret key: " CLOUDFLARE_SECRET_KEY
+
+export SSL_EMAIL=bookity.au@protonmail.com
+export CLOUDFLARE_DOMAIN=bookity.au
+export CLOUDFLARE_SECRET_KEY=EaOkqozWacVdCfluiNwM0pFZyfVGuTDJaX7br1We
 
 echo "[TASK]   - http01 issuer's"
 cat>"/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/issuer-staging.yaml"<<EOF
@@ -251,7 +266,7 @@ echo "[TASK]  - dns solver secrets"
 sudo kubectl create secret generic "cloudflare-token-secret" \
   --namespace "cert-manager" \
   --from-literal=cloudflare-token="${CLOUDFLARE_SECRET_KEY}" \
-  --dry-run=client -o yaml | kubeseal --cert="/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/pub-sealed-secrets-cluster0.pem" \
+  --dry-run=client -o yaml | kubeseal --cert="/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/pub-sealed-secrets-${CLUSTER_NAME}.pem" \
   --format=yaml > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/cert-manager/cert-manager/cloudflare-solver-secret.yaml"
 
 echo "[TASK] Update kustomize"
@@ -334,7 +349,7 @@ echo "[TASK] Update git repository"
 cd ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}
 git add -A
 git status
-git commit -am "cert manager deployment"
+git commit -am "cert manager configuration"
 git push
 
 echo "[TASK] Flux reconcile"

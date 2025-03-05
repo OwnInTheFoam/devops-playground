@@ -13,7 +13,7 @@
 # yq
 
 # DEFINES
-LO_VER="5.36.3" # helm search hub --max-col-width 80 loki | grep "/grafana/"
+LO_VER="5.43.3" # helm search hub --max-col-width 80 loki | grep "/grafana/"
 CLUSTER_REPO=gitops
 CLUSTER_NAME=cluster0
 
@@ -40,11 +40,11 @@ for CMD in $REQUIRED_CMDS; do
       exit
   else
     # Get package version
-    VERSION=$("$CMD" -v 2>/dev/null)
+    VERSION=$("$CMD" --version 2>/dev/null)
     if [ -n "$VERSION" ]; then
       echo "  - $CMD is installed. Version: $VERSION"
     else
-      VERSION=$("$CMD" --version 2>/dev/null)
+      VERSION=$("$CMD" -v 2>/dev/null)
       if [ -n "$VERSION" ]; then
         echo "  - $CMD is installed. Version: $VERSION"
       else
@@ -102,21 +102,21 @@ git commit -am "loki helm default values"
 git push
 
 echo "[TASK] Retrieve helm values"
-yq -i '.monitoring.promtail.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+yq -i '.promtail.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 yq -i '.monitoring.serviceMonitor.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 yq -i '.monitoring.serviceMonitor.additionalLabels.release="prometheus"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.pipelineStages[0].docker={}' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.pipelineStages[1].drop.source="namespace"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.pipelineStages[1].drop.expression="kube-.*" | .monitoring.pipelineStages[1].drop.expression style="double"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.prometheus.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.fluent-bit.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.grafana.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.loki.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.persistence.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.persistence.size="10Gi"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.config.chunk_store_config.max_look_back_period="672h"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.config.table_manager.retention_deletes_enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.config.table_manager.retention_period="672h"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+#yq -i '.monitoring.pipelineStages[0].docker={}' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+#yq -i '.monitoring.pipelineStages[1].drop.source="namespace"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+#yq -i '.monitoring.pipelineStages[1].drop.expression="kube-.*" | .monitoring.pipelineStages[1].drop.expression style="double"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+yq -i '.prometheus.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+yq -i '.fluent-bit.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+yq -i '.grafana.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+yq -i '.loki.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+yq -i '.loki.persistence.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+yq -i '.loki.persistence.size="10Gi"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+yq -i '.loki.config.chunk_store_config.max_look_back_period="672h"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+yq -i '.loki.config.table_manager.retention_deletes_enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+yq -i '.loki.config.table_manager.retention_period="672h"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 
 # echo "[TASK] Configure values file"
 # mkdir -p ${HOME}/${K8S_CONTEXT}/envs
@@ -171,11 +171,10 @@ sudo flux create helmrelease loki \
   --chart=loki \
   --namespace=flux-system \
   --target-namespace=monitoring \
-  --values-file=${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml \
+  --values=${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml \
   --create-target-namespace \
   --depends-on=flux-system/sealed-secrets \
   --export > /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring/loki/loki.yaml
-  ##--values=/${HOME}/${K8S_CONTEXT}/envs/loki-values.yaml \
 
 echo "[TASK] Update namespace of prometheus community chart"
 yq e -i '.spec.chart.spec.sourceRef.namespace = "flux-system"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring/loki/loki.yaml

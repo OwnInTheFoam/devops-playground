@@ -170,7 +170,7 @@ kubectl delete secret "route53-secret"
 **Service URL**
 Ensure you use the correct namespace, service name & service port!
 ```bash
-http://localhost:8001/api/v1/namespaces/k8s-dashboard/services/https:kubernetes-dashboard:https/proxy/
+http://localhost:30000/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:https/proxy/
 ```
 
 **Port forwarding**
@@ -180,5 +180,13 @@ kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-nginx-cont
 You'll be able to access it at
 ```bash
 https://localhost:8443
+```
+
+Alternative with remote access:
+```bash
+sudo kubectl proxy --port 30000
+ssh -f -N -L 30000:localhost:30000 -p 22004 server4@IPAddress #if you need to port forward from remote machine
+http://localhost:30000/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:443/proxy/
+ps aux | grep ssh # see ports forwarded
 ```
 
