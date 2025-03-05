@@ -345,6 +345,11 @@ spec:
 ```bash
 sudo kubectl proxy --port 30000
 ssh -f -N -L 30000:localhost:30000 -p 22004 server4@IPAddress #if you need to port forward from remote machine
+
+# If you need to port forward from remote machine to the proxy
+ssh -f server1@IPAddress -p 22001 -L localhost:30000:localhost:30000 -N
+# If you need to port forward from remote machine directly to service container IP
+ssh -f server1@IPAddress -p 22001 -L 30000:ContainerIP:30000 -N
 http://localhost:30000/api/v1/namespaces/longhorn-system/services/http:longhorn-frontend:80/proxy/
 ps aux | grep ssh # see ports forwarded
 ```
@@ -381,3 +386,19 @@ sudo mount /dev/sda /mnt/disk1
 
 In longhorn GUI `Node > Edit node and disks > Add disk`.
 Use the above mount path for the path field.
+
+Ensure disk is mount after boot
+```bash
+# Make a backup incase something goes wrong
+sudo cp /etc/fstab /etc/fstab.bak
+# Edit fstab
+sudo nano /etc/fstab
+# Add the following line
+/dev/sda     /mnt/disk1     ext4     defaults     0     0
+# Test the mounting by running
+sudo mount -a
+# Reboot and ensure correct mounting before deleting backup
+sudo reboot
+df -h
+sudo rm -rf /etc/fstab.bak
+```
