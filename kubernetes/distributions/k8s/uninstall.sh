@@ -69,8 +69,9 @@ echo "[TASK] Delete alias"
 sed -i '/kubectl/d' ~/.bash_aliases
 sed -i '/flux/d' ~/.bash_aliases
 
-echo "[TASK] Delete bash completion"
+echo "[TASK] Delete bash completion and env"
 sed -i '/kubectl/d' ~/.bashrc
+sudo sed -i '/KUBE/d' /etc/environment
 
 echo "[TASK] Delete temporary files from ${DIR}"
 rm -rf ${DIR}/containerd-${containerdVer}-linux-$(dpkg --print-architecture).tar.gz
