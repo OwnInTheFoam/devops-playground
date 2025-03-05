@@ -168,3 +168,14 @@ systemctl enable clusterboot.service --now
 systemctl status clusterboot
 ```
 
+Ensure all dependencies are installed
+```bash
+sudo systemctl list-dependencies clusterboot.service
+```
+If you have `systemd-networkd-wait-online` as failed then:
+Run `ip a` to determine the network interface used, such as `eth1`.
+Then edit the service configuration:
+```bash
+ExecStart=/lib/systemd/systemd-networkd-wait-online --interface=eno1
+```
+If that does not help you may try arguments `--any` and/or `timeout=10s`
