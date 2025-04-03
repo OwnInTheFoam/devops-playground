@@ -105,6 +105,8 @@ sudo apt install -qq -y kubeadm=${kubernetesVer}-00 kubelet=${kubernetesVer}-00 
 echo "[TASK 8] Enable kubectl completion bash"
 cat>>${HOME}/.bashrc<<EOF
 source <(kubectl completion bash)
+export EDITOR="nano"
+export KUBE_EDITOR="nano"
 EOF
 
 #echo "[TASK - DISABLED] Enable ssh password authentication"

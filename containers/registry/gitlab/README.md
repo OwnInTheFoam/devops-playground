@@ -54,11 +54,10 @@ Any commits to the gitlab repository the gitlab runner will start the pipeline s
   docker build -t registry.gitlab.com/group/project .
   docker push registry.gitlab.com/group/project
   ```
-6. Create deploy token `Settings > Repository > Deploy Tokens` 
+6. Create deploy token `Settings > Repository > Deploy Tokens`  OR personal access token `User avatar > Edit profile > Access tokens > Personal access tokens`
 7. Configure [kubernetes](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)/[containerd](https://github.com/containerd/containerd/blob/main/docs/cri/registry.md#configure-registry-credentials) to connect to gitlab container registry
   
   ```bash
-
   sudo kubectl create secret docker-registry gitlab-registry-secret \
   --docker-server=registry.gitlab.com \
   --docker-username=YOUR_USERNAME \
