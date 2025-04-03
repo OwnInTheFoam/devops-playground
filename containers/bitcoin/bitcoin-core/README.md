@@ -109,13 +109,37 @@ done
 
 ## bitcoin-qt setup
 
-### Testnet
+### Installing
+```bash
+# Download the binary
+wget https://bitcoincore.org/bin/bitcoin-core-28.1/bitcoin-28.1-x86_64-linux-gnu.tar.gz
+# Verify download
+wget https://bitcoincore.org/bin/bitcoin-core-28.1/SHA256SUMS
+wget https://bitcoincore.org/bin/bitcoin-core-28.1/SHA256SUMS.asc
+sha256sum --check SHA256SUMS --ignore-missing
+mkdir builder-keys && cd builder-keys
+for key in 0xb10c CoinForensics Emzy Sjors TheCharlatan achow101 benthecarman cfields darosior davidgumberg dunxen fanquake glozow guggero hebasto ismaelsadeeq jackielove4u josibake kvaciral laanwj luke-jr m3dwards pinheadmz satsie sipa sipsorcery svanstaa theStack vertiond willcl-ark willyko; do wget "https://raw.githubusercontent.com/bitcoin-core/guix.sigs/main/builder-keys/$key.gpg"; done
+gpg --import *
+cd ../
+gpg --verify SHA256SUMS.asc
+# Extract binary
+tar -xzf bitcoin-28.1-x86_64-linux-gnu.tar.gz
+sudo cp bitcoin-28.0/bin/* /usr/local/bin/
+# Check
+bitcoind --version
+bitcoind -chain=main -daemon
+tail -f ~/.bitcoin/debug.log
+bitcoin-cli -chain=main getblockchaininfo
+bitcoin-cli -chain=main stop
+```
+
+### Testnet3
 Launching
 ```sh
 # GUI
-/usr/local/bin/bitcoin-qt -testnet
+/usr/local/bin/bitcoin-qt -chain=testnet3
 # Daemon
-bitcoind -testnet -daemon
+bitcoind -chain=testnet3 -daemon
 ```
 
 Create desktop shortcut
@@ -125,49 +149,49 @@ wget https://github.com/bitcoin/bitcoin/raw/master/share/pixmaps/bitcoin64.png
 sudo mkdir -p /usr/local/share/icons/
 sudo mv bitcoin64.png /usr/local/share/icons/
 
-cat >> ~/Desktop/bitcoind-testnet.desktop <<EOF
+cat >> ~/Desktop/bitcoind-testnet3.desktop <<EOF
 [Desktop Entry]
 Version=1.0
-Name=Bitcoin Core Testnet
-Comment=Launch Bitcoin Core in Testnet mode
-Exec=/usr/local/bin/bitcoind -testnet -daemon
+Name=Bitcoin Core Testnet3
+Comment=Launch Bitcoin Core in Testnet3 mode
+Exec=/usr/local/bin/bitcoin-qt -chain=testnet3 -daemon
 Icon=/usr/local/share/icons/bitcoin64.png
 Terminal=false
 Type=Application
 Categories=Finance;Network;
 EOF
 
-chmod +x ~/Desktop/bitcoind-testnet.desktop
+chmod +x ~/Desktop/bitcoind-testnet3.desktop
 
-cp ~/Desktop/bitcoind-testnet.desktop ~/.local/share/applications/
+cp ~/Desktop/bitcoind-testnet3.desktop ~/.local/share/applications/
 ```
 
 Auto launch on startup
  ```sh
 # Following is for graphical applications like Bitcoin Core Qt
 #mkdir -p ~/.config/autostart/
-#cp ~/.local/share/applications/bitcoind-testnet.desktop ~/.config/autostart/
+#cp ~/.local/share/applications/bitcoind-testnet3.desktop ~/.config/autostart/
 ```
 Alternatively, Launch `Startup Applications` and Add:
 ```sh
 #Name: BitcoinCoreTestnet
-#Command: /usr/local/bin/bitcoind -testnet -daemon
+#Command: /usr/local/bin/bitcoind -chain=testnet3 -daemon
 ```
 Or for daemon, 
 ```sh
 #sudo chown -R server6:server6 /home/server6/.bitcoin/testnet3
 #sudo chmod -R 700 /home/server6/.bitcoin/testnet3
 
-sudo nano /etc/systemd/system/bitcoind-testnet.service
-cat >> /etc/systemd/system/bitcoind-testnet.service <<EOF
+sudo nano /etc/systemd/system/bitcoind-testnet3.service
+cat >> /etc/systemd/system/bitcoind-testnet3.service <<EOF
 [Unit]
-Description=Bitcoin Core Testnet Daemon
+Description=Bitcoin Core Testnet3 Daemon
 After=network.target
 
 [Service]
 Type=forking
-ExecStart=/usr/local/bin/bitcoind -testnet -daemon -rpcbind=127.0.0.1 -rpcbind=0.0.0.0 -rpcport=18332 -rpcallowip=127.0.0.1 -rpcallowip=192.168.0.0/24
-ExecStop=/usr/local/bin/bitcoin-cli -testnet stop
+ExecStart=/usr/local/bin/bitcoind -chain=testnet3 -daemon -rpcbind=0.0.0.0 -rpcport=18332 -rpcallowip=192.168.0.0/24
+ExecStop=/usr/local/bin/bitcoin-cli -chain=testnet3 stop
 Restart=on-failure
 User=server6
 Group=server6
@@ -181,9 +205,9 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl enable bitcoind-testnet.service
-sudo systemctl start bitcoind-testnet.service
-sudo systemctl status bitcoind-testnet.service
+sudo systemctl enable bitcoind-testnet3.service
+sudo systemctl start bitcoind-testnet3.service
+sudo systemctl status bitcoind-testnet3.service
 ```
 
 In `~/.bashrc` add following
@@ -195,7 +219,7 @@ ulimit -n 4096
 Then restart the machine and check RPC is running:
 ```sh
 # Gracefully shutdown bitcoin core
-bitcoin-cli -testnet stop
+bitcoin-cli -chain=testnet3 stop
 # Wait for log
 tail -f ~/.bitcoin/testnet3/debug.log
 # Restart
@@ -204,7 +228,7 @@ sudo shutdown now -r
 # Look for "Binding RPC on address 127.0.0.1 port 18332"
 grep -i rpc ~/.bitcoin/testnet3/debug.log
 
-bitcoin-cli -testnet getblockchaininfo
+bitcoin-cli -chain=testnet3 getblockchaininfo
 ```
 
 #### RPC communications
@@ -212,15 +236,15 @@ bitcoin-cli -testnet getblockchaininfo
 Within `~/.bitcoin/bitcoin.conf` apply following:
 ```conf
 server=1
-[test]
+chain=testnet3
+[testnet3]
 debug=rpc
-rpcbind=0.0.0.0  # Bind all network interfaces
-rpcallowip=192.168.0.0/24  # Allow connections from the local network
+rpcbind=0.0.0.0
+rpcallowip=192.168.0.0/24
 rpcport=18332
-#rpcbind=127.0.0.1  # Bind to localhost
-#rpcallowip=127.0.0.1  # Allow connections from localhost
 rpcuser=rpc_username
 rpcpassword=rpc_password
+wallet=watchonly
 fallbackfee=0.00001
 paytxfee=0.00001
 mintxfee=0.000005
@@ -230,11 +254,11 @@ maxtxfee=0.1
 Restart node:
 ```sh
 # Gracefully shutdown bitcoin core
-bitcoin-cli -testnet stop
+bitcoin-cli -chain=testnet3 stop
 # Wait for log
 tail -f ~/.bitcoin/testnet3/debug.log
 # Start bitcoin core
-bitcoind -daemon -testnet
+bitcoind -daemon -chain=testnet3
 ```
 
 #### Security
@@ -249,6 +273,154 @@ sudo ufw allow from 192.168.0.226 to any port 18332
 sudo ufw allow from 192.168.0.227 to any port 18332
 # Deny all others
 sudo ufw deny 18332
+# Status
+sudo ufw reload
+sudo ufw status
+```
+
+### Testnet4
+Launching
+```sh
+# GUI
+/usr/local/bin/bitcoin-qt -chain=testnet4
+# Daemon
+bitcoind -chain=testnet4 -daemon
+```
+
+Create desktop shortcut
+```sh
+cd ~/Downloads
+wget https://github.com/bitcoin/bitcoin/raw/master/share/pixmaps/bitcoin64.png
+sudo mkdir -p /usr/local/share/icons/
+sudo mv bitcoin64.png /usr/local/share/icons/
+
+cat >> ~/Desktop/bitcoin-qt-testnet4.desktop <<EOF
+[Desktop Entry]
+Version=1.0
+Name=Bitcoin Core Testnet4
+Comment=Launch Bitcoin Core in Testnet4 mode
+Exec=/usr/local/bin/bitcoin-qt -chain=testnet4
+Icon=/usr/local/share/icons/bitcoin64.png
+Terminal=false
+Type=Application
+Categories=Finance;Network;
+EOF
+
+chmod +x ~/Desktop/bitcoin-qt-testnet4.desktop
+
+cp ~/Desktop/bitcoin-qt-testnet4.desktop ~/.local/share/applications/
+```
+
+Auto launch on startup
+ ```sh
+# Following is for graphical applications like Bitcoin Core Qt
+#mkdir -p ~/.config/autostart/
+#cp ~/.local/share/applications/bitcoind-testnet4.desktop ~/.config/autostart/
+```
+Alternatively, Launch `Startup Applications` and Add:
+```sh
+#Name: BitcoinCoreTestnet4
+#Command: /usr/local/bin/bitcoind -chain=testnet4 -daemon
+```
+Or for daemon, 
+```sh
+#sudo chown -R server5:server5 /home/server5/.bitcoin/testnet4
+#sudo chmod -R 700 /home/server5/.bitcoin/testnet4
+
+sudo nano /etc/systemd/system/bitcoind-testnet4.service
+cat >> /etc/systemd/system/bitcoind-testnet4.service <<EOF
+[Unit]
+Description=Bitcoin Core Testnet4 Daemon
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/local/bin/bitcoind -chain=testnet4 -daemon -rpcbind=0.0.0.0 -rpcport=48332 -rpcallowip=192.168.0.0/24
+ExecStop=/usr/local/bin/bitcoin-cli -chain=testnet4 stop
+Restart=on-failure
+User=server5
+Group=server5
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=300
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable bitcoind-testnet4.service
+sudo systemctl start bitcoind-testnet4.service
+sudo systemctl status bitcoind-testnet4.service
+```
+
+In `~/.bashrc` add following
+```sh
+# Increase open file descriptors
+ulimit -n 4096
+```
+
+Then restart the machine and check RPC is running:
+```sh
+# Gracefully shutdown bitcoin core
+bitcoin-cli -chain=testnet4 stop
+# Wait for log
+tail -f ~/.bitcoin/testnet4/debug.log
+# Restart
+sudo shutdown now -r
+
+# Look for "Binding RPC on address 127.0.0.1 port 48332"
+grep -i rpc ~/.bitcoin/testnet4/debug.log
+
+bitcoin-cli -chain=testnet4 getblockchaininfo
+```
+
+#### RPC communications
+
+Within `~/.bitcoin/bitcoin.conf` apply following:
+```conf
+server=1
+chain=testnet4
+[testnet4]
+debug=rpc
+rpcbind=0.0.0.0
+rpcallowip=192.168.0.0/24
+rpcport=48332
+rpcuser=rpc_username
+rpcpassword=rpc_password
+wallet=watchonly
+fallbackfee=0.00001
+paytxfee=0.00001
+mintxfee=0.000005
+maxtxfee=0.1
+```
+
+Restart node:
+```sh
+# Gracefully shutdown bitcoin core
+bitcoin-cli -chain=testnet4 stop
+# Wait for log
+tail -f ~/.bitcoin/testnet4/debug.log
+# Start bitcoin core
+bitcoind -daemon -chain=testnet4
+```
+
+#### Security
+##### Firwall
+```sh
+# Allow all localhost connections that will be used to communicate server
+#sudo ufw allow from 192.168.0.215 to any port 48332
+#sudo ufw allow from 192.168.0.223 to any port 48332
+#sudo ufw allow from 192.168.0.224 to any port 48332
+#sudo ufw allow from 192.168.0.225 to any port 48332
+#sudo ufw allow from 192.168.0.226 to any port 48332
+#sudo ufw allow from 192.168.0.227 to any port 48332
+sudo ufw allow from 192.168.0.0/24 to any port 48332
+# Deny all others
+#sudo ufw deny 48332
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
 # Status
 sudo ufw reload
 sudo ufw status
@@ -307,7 +479,7 @@ After=network.target
 
 [Service]
 Type=forking
-ExecStart=/usr/local/bin/bitcoind -daemon
+ExecStart=/usr/local/bin/bitcoind -daemon -rpcbind=0.0.0.0 -rpcport=8332 -rpcallowip=192.168.0.0/24
 ExecStop=/usr/local/bin/bitcoin-cli stop
 Restart=on-failure
 User=server5
@@ -358,6 +530,7 @@ rpcbind=0.0.0.0
 rpcallowip=192.168.0.0/24
 rpcuser=your_rpc_username
 rpcpassword=your_rpc_password
+wallet=watchonly
 fallbackfee=0.00001
 paytxfee=0.00001
 mintxfee=0.000005
@@ -367,7 +540,7 @@ Restart node:
 ```sh
 # Gracefully shutdown bitcoin core
 bitcoin-cli stop
-#bitcoin-cli -rpcconnect=192.168.0.224 -rpcport=8332 -rpcuser=Professor -rpcpassword=bitcoin$ stop
+#bitcoin-cli -rpcconnect=192.168.0.224 -rpcport=8332 -rpcuser=add -rpcpassword=add stop
 # Wait for log
 tail -f ~/.bitcoin/debug.log
 # Relaunch
@@ -398,30 +571,37 @@ Enable SSL Encryption for RPC
 
 Use a ssh tunnel
 ```sh
-ssh -L 18332:local_ip:18332 user@public_ip -p port
-ssh -f -N -L 18332:localhost:18332 -p 22006 server6@110.151.44.98
+ssh -L 48332:local_ip:48332 user@public_ip -p port
+ssh -f -N -L 48332:localhost:48332 -p 22006 server6@110.151.44.98
 ps aux grep ssh
 
 bitcoin-cli -rpcconnect=$BITCOINCORE_HOST -rpcport=$BITCOINCORE_PORT -rpcuser=$BITCOINCORE_RPCUSER -rpcpassword=$BITCOINCORE_RPCPASSWORD getblockchaininfo
 
-bitcoin-cli -testnet -rpcconnect=192.168.0.223 -rpcport=18332 -rpcuser=Professor -rpcpassword=bitcoin$ getblockchaininfo
+bitcoin-cli -chain=testnet4 -rpcconnect=192.168.0.223 -rpcport=18332 -rpcuser=add -rpcpassword=add getblockchaininfo
 ```
 
 ## Usage
 
 ```sh
 # Wallet creation
-bitcoin-cli -testnet createwallet "mywallet"
-bitcoin-cli -testnet -rpcwallet="mywallet" getwalletinfo
-bitcoin-cli -testnet listwallets
-bitcoin-cli -testnet createwallet "watchonly" true
+bitcoin-cli -chain=testnet4 -rpcwallet="watchonly" getwalletinfo
+bitcoin-cli -chain=testnet4 listwallets
+bitcoin-cli -chain=testnet4 createwallet "watchonly" true true "" true
+# true (2nd arg) → Descriptor wallet
+# true (3rd arg) → Watch-only
+# "" (4th arg) → No passphrase
+# true (5th arg) → Avoid private keys
+bitcoin-cli -chain=testnet4 loadwallet "watchonly"
+
+# Update .bitcoin/bitcoin.conf with
+wallet=watchonly
 
 # Check wallet
 ls ~/.bitcoin/testnet3/wallets
 
 # Export wallet
-bitcoin-cli -testnet -rpcwallet="mywallet" backupwallet "/home/user/wallet-backups/mywallet.dat"
-bitcoin-cli -testnet -rpcwallet="mywallet" dumpwallet "/home/user/wallet-backups/mywallet-keys.txt"
+bitcoin-cli -chain=testnet4 -rpcwallet="watchonly" backupwallet "/home/user/wallet-backups/watchonly.dat"
+bitcoin-cli -chain=testnet4 -rpcwallet="watchonly" dumpwallet "/home/user/wallet-backups/watchonly-keys.txt"
 
 ```
 
