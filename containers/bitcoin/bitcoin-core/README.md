@@ -611,3 +611,23 @@ Add following to your bitcoin.conf
 ```sh
 wallet=hdwallet.dat
 ```
+
+## Import wallet from cold hardware wallet
+After exporting wallet from coldcard for Bitcoin Core to a micro SD card.
+Ensure wallet is created on the node then run the import command from within the exported file to the node.
+```sh
+# Create wallet
+bitcoin-cli -chain=testnet4 createwallet "coldwallet_1" true true "" true
+bitcoin-cli -chain=testnet4 listwallets
+# Update bitcoin.conf to load wallet on startup
+cat >> ~/.bitcoin/bitcoin.conf <<EOF
+wallet=coldwallet_1
+EOF
+# Import descriptors
+bitcoin-cli -chain=testnet4 -rpcwallet=coldwallet_1 importdescriptors '[{"active": true, "timestamp": "now", "range": [0, 100], "internal": false, "desc": "wpkh([fingerprint/84h/1h/0h]tpub.../0/*)#checksum"}, {"active": true, "timestamp": "now", "range": [0, 100], "internal": true, "desc": "wpkh([fingerprint/84h/1h/0h]tpub.../1/*)#checksum"}]'
+# You may need to rescan the blockchain for existing transactions
+bitcoin-cli -chain=testnet4 -rpcwallet=coldwallet_1 rescanblockchain 0
+# Ensure the following are correct
+bitcoin-cli -chain=testnet4 -rpcwallet=coldwallet_1 getnewaddress
+bitcoin-cli -chain=testnet4 -rpcwallet=coldwallet_1 getbalance
+```
