@@ -33,12 +33,12 @@ ethtool --version
 ```
 If `ethtool` is not installed then run:
 ```
-apt update
-apt install ethtool
+sudo apt update
+sudo apt install ethtool
 ```
 With `ethtool` use the ethernet port to check if WakeOnLan is supported.
 ```
-ethtool eth1
+sudo ethtool eth1
 ```
 This should output similar to the following:
 ```
@@ -58,7 +58,7 @@ You can determine if WakeOnLan is supported (`g` present) using the following le
 
 To enable WakeOnLan:
 ```
-ethtool --change eth1 wol g
+sudo ethtool --change eth1 wol g
 ```
 
 ## Sending WakeOnLan magic packet from another PC - Linux
@@ -68,8 +68,8 @@ wakeonlan -v
 ```
 If it is not then install it with:
 ```
-apt update
-apt install wakeonlan
+sudo apt update
+sudo apt install wakeonlan
 ```
 To determine if the target PC receives the magic packet use `tcpdump` to listen:
 ```
@@ -114,25 +114,47 @@ Should output similar to:
 ```
 /usr/sbin/ethtool
 ```
-Then create a `systemd` service:
+Then create a `systemd` service. The important part is to run it after the network stack has finished bringing the interface up, otherwise the NIC or network manager can reset the Wake-on-LAN setting later in boot.
 ```
-cat >/etc/systemd/system/wol.service<<EOF
+sudo cat >/etc/systemd/system/wol.service<<EOF
 [Unit]
 Description=Enable Wake On Lan
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart = /usr/sbin/ethtool --change eth1 wol g
+ExecStart=/usr/sbin/ethtool --change eth1 wol g
 
 [Install]
-WantedBy=basic.target
+WantedBy=multi-user.target
 EOF
 ```
 Then reload `systemd`:
 ```
-systemctl daemon-reload
-systemctl enable wol.service
-systemctl status wol
+sudo systemctl daemon-reload
+sudo systemctl enable wol.service --now
+sudo systemctl restart wol.service
+sudo systemctl status wol
+```
+Then verify the setting persisted:
+```bash
+sudo ethtool eth1 | grep Wake-on
+```
+If it still reports `Wake-on: d`, first confirm the service actually ran after boot:
+```bash
+sudo journalctl -b -u wol.service
+```
+On systems using `systemd-networkd`, you may also need:
+```bash
+sudo systemctl enable systemd-networkd-wait-online.service
+```
+If a network manager or driver still resets the setting, a small delay can help:
+```ini
+[Service]
+Type=oneshot
+ExecStartPre=/usr/bin/sleep 5
+ExecStart=/usr/sbin/ethtool --change eth1 wol g
 ```
 
 ## Automatically trigger WakeOnLan on startup
@@ -140,12 +162,12 @@ Create an systemd service file to execute on startup. Note: This could be combin
 
 First enable systems to wait for network.
 ```
-systemctl enable systemd-networkd.service systemd-networkd-wait-online.service
+sudo systemctl enable systemd-networkd.service systemd-networkd-wait-online.service
 ```
 
 Then add the cluster boot service
 ```
-cat >/etc/systemd/system/clusterboot.service<<EOF
+sudo cat >/etc/systemd/system/clusterboot.service<<EOF
 [Unit]
 Description=Boot all cluster nodes with wol
 After=systemd-networkd-wait-online.service
@@ -154,18 +176,19 @@ Wants=systemd-networkd-wait-online.service
 [Service]
 Type=oneshot
 ExecStartPre=/usr/bin/sleep 15
-ExecStart = wakeonlan 00:23:24:E5:0E:DE
-ExecStartPost = wakeonlan 00:23:24:E5:0D:FF
+ExecStart=/usr/bin/wakeonlan 6c:4b:90:1f:dc:a7
+ExecStart=/usr/bin/wakeonlan 00:23:24:E5:0E:DE
+ExecStartPost=/usr/bin/wakeonlan 00:23:24:E5:0D:FF
 
 [Install]
-WantedBy=basic.target
+WantedBy=multi-user.target
 EOF
 ```
 Then reload `systemd`:
 ```
-systemctl daemon-reload
-systemctl enable clusterboot.service --now
-systemctl status clusterboot
+sudo systemctl daemon-reload
+sudo systemctl enable clusterboot.service --now
+sudo systemctl status clusterboot
 ```
 
 Ensure all dependencies are installed
