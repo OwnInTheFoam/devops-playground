@@ -49,6 +49,28 @@ sshpass -p "${userPassword}" scp -o UserKnownHostsFile=/dev/null -o StrictHostKe
 ```
 
 ## SSH shutdown cluster
+### Require Password
+Command to shutdown another machine from terminal:
+`ssh -t -p SSH_PORT USER@IP_ADDRESS 'sudo shutdown -h now'`
+
+Using ssh script:
+```bash
+cat >${HOME}/shutdowncluster.sh<<EOF
+echo "Enter your password for user1:"
+ssh -t -p SSH_PORT USER@IP_ADDRESS 'sudo shutdown -h now'
+
+echo "Enter your password for user2:"
+ssh -t -p SSH_PORT USER@IP_ADDRESS 'sudo shutdown -h now'
+
+echo "Enter your password for user3:"
+ssh -t -p SSH_PORT USER@IP_ADDRESS 'sudo shutdown -h now'
+
+echo "Enter your password for user4:"
+sudo shutdown now
+EOF
+```
+
+### No Password
 Using ssh script:
 ```bash
 cat >${HOME}/shutdowncluster.sh<<EOF
@@ -63,7 +85,7 @@ This is require as the password cannot securely be passed through ssh.
 sudo sed -i 'username ALL=(ALL) NOPASSWD: /sbin/shutdown now' /etc/sudoers
 ```bash
 sudo visudo
-username ALL=(ALL) NOPASSWD: /sbin/shutdown now
+username ALL=(ALL) NOPASSWD: /sbin/shutdown
 ```
 ```bash
 cat >${HOME}/shutdowncluster.sh<<EOF
