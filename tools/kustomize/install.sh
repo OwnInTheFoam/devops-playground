@@ -3,7 +3,7 @@
 # git add --chmod=+x install.sh
 
 echo "[TASK] Downloading install script"
-wget --no-verbose "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
+wget --no-verbose https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh
 
 echo "[TASK] Running install script"
 sudo bash install_kustomize.sh
