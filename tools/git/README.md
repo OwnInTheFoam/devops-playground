@@ -36,6 +36,7 @@ git clone https://github.com/OwnInTheFoam/devops-playground.git
 git fetch
 git branch -a -v
 git switch name-of-branch
+git switch -c name-of-new-branch
 ```
 
 ## Stage and snapshot
@@ -61,7 +62,8 @@ git branch
 # create a new branch at the current commit
 git branch [branch-name]
 # switch to another branch and check it out into your working directory
-git checkout
+#git checkout
+git switch
 # merge the specified branch’s history into the current one
 git merge [branch]
 # show all commits in the current branch’s history
@@ -80,6 +82,16 @@ git log --follow [file]
 git diff branchB...branchA
 # show any object in Git in human-readable format
 git show [SHA]
+```
+
+## Cherry Pick
+```sh
+git log <source-branch-name> --oneline
+git cherry-pick abc1234
+git status
+git add <file-name>
+git cherry-pick --continue
+git cherry-pick --abort
 ```
 
 ## Tracking path changes
@@ -134,4 +146,6 @@ git stash list
 git stash pop
 # discard the changes from top of stash stack
 git stash drop
+# stash changes with untracked and specific files
+git stash push -u -m "my-stash" README.md apps\\api\\README.md
 ```

@@ -2,7 +2,13 @@
 
 ## Installation
 ```bash
-wget --no-verbose https://github.com/mikefarah/yq/releases/download/v4.42.1/yq_linux_amd64.tar.gz -O - | tar xz && sudo mv yq_linux_amd64 /usr/bin/yq
+# Set your platform variables (adjust as needed)
+export VERSION=v4.53.2
+export PLATFORM=linux_amd64
+
+# Download compressed binary
+wget https://github.com/mikefarah/yq/releases/download/${VERSION}/yq_${PLATFORM}.tar.gz -O - |\
+  tar xz && sudo mv yq_${PLATFORM} /usr/local/bin/yq
 ```
 
 ## Usage

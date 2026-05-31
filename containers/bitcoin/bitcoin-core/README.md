@@ -612,6 +612,15 @@ Add following to your bitcoin.conf
 wallet=hdwallet.dat
 ```
 
+### Common commands
+
+```sh
+bitcoin-cli -getinfo
+bitcoin-cli getblockchaininfo
+bitcoin-cli getnetworkinfo
+bitcoin-cli getzmqnotifications
+```
+
 ## Import wallet from cold hardware wallet
 After exporting wallet from coldcard for Bitcoin Core to a micro SD card.
 Ensure wallet is created on the node then run the import command from within the exported file to the node.
