@@ -12,7 +12,7 @@
 
 ## Lock screen
 - Check lock screen
-  ```
+  ```sh
   gsettings get org.gnome.desktop.lockdown disable-lock-screen
   ```
 - Disable lock screen 
@@ -36,8 +36,8 @@
   sudo nano /etc/gdm3/custom.conf
   ```
   ```
-  AutomaticLoginEnable = true
-  AutomaticLogin = root
+  AutomaticLoginEnable=true
+  AutomaticLogin=<your_user>
   ```
 
 ## Create root user - NOT RECOMMENDED
