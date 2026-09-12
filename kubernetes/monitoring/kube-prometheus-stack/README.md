@@ -311,7 +311,7 @@ flux create helmrelease kube-prometheus-stack \
 Create the grafana secret and update the manifest
 ```bash
 cd /${HOME}/${K8S_CONTEXT}/projects/gitops
-export GRAFANA_ADMIN_PASSWORD=yourPassword
+export GRAFANA_ADMIN_PASSWORD=<REDACTED>
 
 kubectl create secret generic "prometheus-stack-credentials" \
   --namespace "monitoring" \

@@ -22,7 +22,7 @@ EOF
 
 ## Steps
 ```bash
-export GITHUB_TOKEN=ghp_xyz
+export GITHUB_TOKEN=ghp_<REDACTED>
 export GITHUB_USER=yourUser
 export CLUSTER_REPO=gitops
 flux check --pre
