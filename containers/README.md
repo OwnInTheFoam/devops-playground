@@ -94,7 +94,7 @@ services:
   postgres:
     image: "postgres:latest"
     environment:
-      - POSTGRES_PASSWORD=postgres_password
+      - POSTGRES_PASSWORD=<REDACTED>
   nginx:
     depends_on:
       - api
@@ -116,7 +116,7 @@ services:
       - PGUSER=postgres
       - PGHOST=postgres
       - PGDATABASE=postgres
-      - PGPASSWORD=postgres_password
+      - PGPASSWORD=<REDACTED>
       - PGPORT=5432
   client:
     stdin_open: true

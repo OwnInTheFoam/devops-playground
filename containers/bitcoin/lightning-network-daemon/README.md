@@ -22,7 +22,7 @@ rpcbind=0.0.0.0
 rpcallowip=192.168.0.0/24
 rpcport=48332
 rpcuser=<your-user>
-rpcpassword=<your-pass>
+rpcpassword=<REDACTED>
 # ZMQ (loopback is fine)
 zmqpubrawblock=tcp://127.0.0.1:28332
 zmqpubrawtx=tcp://127.0.0.1:28333

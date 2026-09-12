@@ -41,7 +41,7 @@ Note the service should be running to the client port.
 
 3. Create secret
 ```
-kubectl create secret generic pgpassword --from-literal PGPASSWORD=12345test
+kubectl create secret generic pgpassword --from-literal PGPASSWORD=<REDACTED>
 kubectl get secrets
 ```
 
