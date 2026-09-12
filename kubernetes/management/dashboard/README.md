@@ -1,5 +1,7 @@
 # [Kubernetes dashboard](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/)
 
+Depreciated and unmaintained - Use headlamp.
+
 [Creating a user account](https://github.com/kubernetes/dashboard/blob/master/docs/user/access-control/creating-sample-user.md)
 [Accessing dashboard](https://github.com/kubernetes/dashboard/blob/v3.0.0-alpha0/docs/user/accessing-dashboard/README.md)
 
