@@ -10,17 +10,9 @@ nfsVer=4.0.17
 # VARIABLE DEFINES
 logFile="${HOME}/nfs/install.log"
 #logFile="/dev/null"
-networkIPAddress=192.168.0.0
 hostIPAddress=192.168.0.215
 
 mkdir -p /${HOME}/nfs
-
-echo "[TASK] Firewall allow local IP for nfs"
-ufw allow from ${networkIPAddress}/24 >>${logFile} 2>&1
-
-echo "[TASK] Install NFS server on Host"
-apt update >>${logFile} 2>&1
-apt -y install nfs-kernel-server >>${logFile} 2>&1
 
 echo "[TASK] Create share directory"
 mkdir -p /srv/nfs/kubedata

@@ -1,6 +1,12 @@
+> **Install cert-manager first.** This script emits a `Certificate` for
+> `longhorn.<REDACTED>` and a Traefik `Middleware`, so the cert-manager and
+> Traefik CRDs must already exist or Flux's `common` Kustomization fails to
+> apply until they do. The root README install order reflects this.
+
 # Longhorn
 
 ## Requirements
+- Run the generic storage node setup from `../common` before installing Longhorn.
 - containerd v1.3.7+
 - Kubernetes >= v1.21
 - open-iscsi is installed on all the nodes. `apt-get install open-iscsi`
