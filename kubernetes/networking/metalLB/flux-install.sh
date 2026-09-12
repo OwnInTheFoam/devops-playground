@@ -9,7 +9,7 @@
 # yq
 
 # DEFINES - versions
-MLB_VER=0.14.3 # helm search hub --max-col-width 80 metallb | grep "metallb/metallb"
+MLB_VER=0.15.3 # helm search hub --max-col-width 80 metallb | grep "metallb/metallb"
 # VARIABLE DEFINES
 startingIP="192.168.0.240"
 endingIP="192.168.0.250"
@@ -32,7 +32,7 @@ for VAR in "${REQUIRED_VARS[@]}"; do
 done
 
 echo "[CHECK] Required packages installed"
-REQUIRED_CMDS="flux kustomize git yq"
+REQUIRED_CMDS="flux kustomize git yq kubectl helm"
 for CMD in $REQUIRED_CMDS; do
   if ! command -v "$CMD" &> /dev/null; then
       echo "  - $CMD could not be found! Exiting..."
