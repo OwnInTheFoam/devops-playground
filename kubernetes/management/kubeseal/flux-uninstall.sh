@@ -3,8 +3,8 @@
 # git add --chmod=+x install.sh
 
 # DEFINES
-SS_VER="2.15.0" #helm search hub --max-col-width 80 sealed-secrets | grep "bitnami-labs"
-SS_BINARY_VER="0.26.0" #https://github.com/bitnami-labs/sealed-secrets/releases
+SS_VER="2.18.5" #helm search hub --max-col-width 80 sealed-secrets | grep "bitnami-labs"
+SS_BINARY_VER="0.36.6" #https://github.com/bitnami-labs/sealed-secrets/releases
 CLUSTER_REPO=gitops
 CLUSTER_NAME=cluster0
 
