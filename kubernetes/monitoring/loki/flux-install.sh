@@ -13,7 +13,7 @@
 # yq
 
 # DEFINES
-LO_VER="5.43.3" # helm search hub --max-col-width 80 loki | grep "/grafana/"
+LO_VER="2.10.3" # helm search repo grafana/loki-stack --versions  (matches AWS qa)
 CLUSTER_REPO=gitops
 CLUSTER_NAME=cluster0
 
@@ -90,8 +90,8 @@ mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/
 echo "[TASK] Retrieve helm values"
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
-# helm search repo grafana/loki --versions
-helm show values grafana/loki --version ${LO_VER} > /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+# helm search repo grafana/loki-stack --versions
+helm show values grafana/loki-stack --version ${LO_VER} > /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 helm repo remove grafana
 
 echo "[TASK] Update the git repository"
@@ -103,17 +103,23 @@ git push
 
 echo "[TASK] Retrieve helm values"
 yq -i '.promtail.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.serviceMonitor.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
-yq -i '.monitoring.serviceMonitor.additionalLabels.release="prometheus"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+yq -i '.loki.serviceMonitor.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+yq -i '.promtail.serviceMonitor.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 #yq -i '.monitoring.pipelineStages[0].docker={}' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 #yq -i '.monitoring.pipelineStages[1].drop.source="namespace"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 #yq -i '.monitoring.pipelineStages[1].drop.expression="kube-.*" | .monitoring.pipelineStages[1].drop.expression style="double"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 yq -i '.prometheus.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 yq -i '.fluent-bit.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 yq -i '.grafana.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+# The chart also ships a Loki datasource ConfigMap for the Grafana sidecar,
+# with loki.isDefault=true. kube-prometheus-stack already provisions Loki as a
+# datasource and marks Prometheus default, so this one is both a duplicate and
+# a second default -- Grafana refuses to start with two defaults.
+yq -i '.grafana.sidecar.datasources.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 yq -i '.loki.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 yq -i '.loki.persistence.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 yq -i '.loki.persistence.size="10Gi"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
+yq -i '.loki.persistence.storageClassName="longhorn"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 yq -i '.loki.config.chunk_store_config.max_look_back_period="672h"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 yq -i '.loki.config.table_manager.retention_deletes_enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
 yq -i '.loki.config.table_manager.retention_period="672h"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml
@@ -168,7 +174,7 @@ sudo flux create helmrelease loki \
   --release-name=loki \
   --source=HelmRepository/loki \
   --chart-version=${LO_VER} \
-  --chart=loki \
+  --chart=loki-stack \
   --namespace=flux-system \
   --target-namespace=monitoring \
   --values=${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/grafana/loki-values.yaml \
