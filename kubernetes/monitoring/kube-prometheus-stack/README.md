@@ -134,9 +134,9 @@ prometheusSpec:
 Before installing the stack, create the grafana dashboard secret;
 ```bash
 %htpasswd -nb your-username | base64
-%htpasswd -nb your-password | base64
+%htpasswd -nb <REDACTED> | base64
 echo -n 'your-username' | base64
-echo -n 'your-password' | base64
+echo -n '<REDACTED>' | base64
 
 cat >/${HOME}/kube-prometheus-stack/secret.yaml<<EOF
 apiVersion: v1

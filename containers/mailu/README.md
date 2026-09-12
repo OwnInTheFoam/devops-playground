@@ -240,7 +240,7 @@ cat '/${HOME}/tigase/kubernetes-admin@kubernetes/envs/mailu-values.yaml' >> '/${
     initialAccount:
       username: "postmaster"
       domain: "example.com"
-      password: "yourPassword"
+      password: "<REDACTED>"
 ```
 Update repository and reconcile
 ```bash
