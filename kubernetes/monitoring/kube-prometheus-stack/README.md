@@ -381,6 +381,47 @@ flux reconcile source git "flux-system"
 kubectl get all -A | grep prometheus
 ```
 
+## Dashboard backups
+
+Two kinds of dashboard live in this Grafana, and only one of them is safe:
+
+| Kind | Where it lives | Survives losing the PVC? |
+|---|---|---|
+| Provisioned — the chart's Kubernetes/Node set, and the `Community` folder | Rebuilt from `flux-install.sh` values on every start | Yes |
+| Made or imported in the UI | Grafana's SQLite on the PVC only | **No** |
+
+`backup-dashboards.sh` closes that gap. It exports every UI-made dashboard
+into the gitops repo as a ConfigMap (`infra/common/monitoring/kube-prometheus-stack/dashboards/`)
+that the dashboard sidecar loads back into a `Custom` folder — versioned,
+reproducible, and back on a fresh install.
+
+```bash
+export K8S_CONTEXT=<context>
+./backup-dashboards.sh
+```
+
+Run it after creating or editing a dashboard. It is idempotent: a second run
+with no changes commits nothing.
+
+How it decides what to export: `meta.provisionedExternalId`, the path of the
+file behind a dashboard. Empty means UI-made (export); a path under `Custom/`
+means an earlier backup (re-export, so edits are captured); anything else is
+the chart's or the Community folder's (skip). It deliberately does **not** use
+`meta.provisioned` — that flag means "locked against UI edits", not "from a
+file", and is false for the sidecar's dashboards because `allowUiUpdates` is
+on for them.
+
+After a backup the dashboard is file-backed but still editable in the UI. Edits
+persist until the next Grafana restart, which reverts to the committed copy —
+so back up again after editing. To delete one, remove its file under
+`dashboards/` and push; the sidecar removes it from Grafana. The script never
+deletes.
+
+Nothing else in the monitoring stack needs this: Prometheus, Loki and Tempo
+data is time-series that ages out under retention, and Alertmanager's silences
+are short-lived. If that data ever matters, that is a Longhorn backup target
+(`storage/longhorn`, "todo setup backups"), not a Grafana concern.
+
 ## DEBUG
 kubectl logs pods/helm-controller-xxxxxxxxxxx -n flux-system
 
