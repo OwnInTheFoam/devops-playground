@@ -10,8 +10,8 @@
 # kubectl
 
 # DEFINES
-SS_VER="2.15.0" #helm search hub --max-col-width 80 sealed-secrets | grep "bitnami-labs"
-SS_BINARY_VER="0.26.0" #https://github.com/bitnami-labs/sealed-secrets/releases
+SS_VER="2.18.5" #helm search hub --max-col-width 80 sealed-secrets | grep "bitnami-labs"
+SS_BINARY_VER="0.36.6" #https://github.com/bitnami-labs/sealed-secrets/releases
 CLUSTER_REPO=gitops
 CLUSTER_NAME=cluster0
 
@@ -58,8 +58,12 @@ for CMD in $REQUIRED_CMDS; do
 done
 
 echo "[TASK] Create the helm source"
+# The chart index moved from bitnami-labs.github.io to bitnami.github.io when
+# Bitnami retired its public catalog; the old host now 404s and Flux cannot
+# refresh the source. Same chart lineage -- the tarballs still come from
+# github.com/bitnami-labs/sealed-secrets/releases.
 sudo flux create source helm sealed-secrets \
-  --url=https://bitnami-labs.github.io/sealed-secrets \
+  --url=https://bitnami.github.io/sealed-secrets \
   --interval=1h \
   --export > "${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/sealed-secrets.yaml"
 
@@ -79,13 +83,13 @@ echo "[TASK] Reconcile flux system"
 sudo flux reconcile source git "flux-system"
 sleep 10
 while sudo flux get all -A | grep -q "Unknown" ; do
-  echo "System not ready yet, waiting anoher 10 seconds"
+  echo "System not ready yet, waiting another 10 seconds"
   sleep 10
 done
 
 echo "[TASK] Retrieve helm values"
 mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/sealed-secrets
-helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
+helm repo add sealed-secrets https://bitnami.github.io/sealed-secrets
 helm repo update
 # helm search repo sealed-secrets/sealed-secrets --versions
 helm show values sealed-secrets/sealed-secrets --version ${SS_VER} > /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/sealed-secrets/sealed-secrets-values.yaml

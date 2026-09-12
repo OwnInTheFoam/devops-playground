@@ -8,8 +8,8 @@
 # kustomize package
 
 # DEFINES
-GITHUB_USER=yourUser
-GITHUB_EMAIL=yourEmail
+GITHUB_USER=<REDACTED>
+GITHUB_EMAIL=<REDACTED>
 CLUSTER_REPO=gitops
 CLUSTER_NAME=cluster0
 # Setup ssh keypair with your git account and the cluster master.
@@ -95,6 +95,15 @@ sudo flux bootstrap github \
   --private=true \
   --read-write-key
 
+# You may need to patch v1beta1 to v1 for kustomize.toolkit.fluxcd.io/
+grep -r "kustomize.toolkit.fluxcd.io/v1beta1" .
+find . -type f -name "*.yaml" -exec sed -i 's/kustomize.toolkit.fluxcd.io\/v1beta1/kustomize.toolkit.fluxcd.io\/v1/g' {} +
+find . -type f -name "*.yaml" -exec sed -i '/validation: client/d' {} +
+find . -type f -name "*.yaml" -exec sed -i '/validation: server/d' {} +
+# Update HelmRepository and GitRepository sources from v1beta1/v1beta2 to v1
+find . -type f -name "*.yaml" -exec sed -i 's|source.toolkit.fluxcd.io/v1beta1|source.toolkit.fluxcd.io/v1|g' {} +
+find . -type f -name "*.yaml" -exec sed -i 's|source.toolkit.fluxcd.io/v1beta2|source.toolkit.fluxcd.io/v1|g' {} +
+
 echo -e "    \nPress ENTER if flux successfully installed and continue, Ctrl-C otherwise..."
 read wait
 
@@ -110,7 +119,7 @@ echo "[TASK 5] Creating manifests"
 echo "         - common.yaml"
 mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/${CLUSTER_NAME}
 cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/${CLUSTER_NAME}/common.yaml<<EOF
-apiVersion: kustomize.toolkit.fluxcd.io/v1beta1
+apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
   name: common
@@ -147,7 +156,7 @@ EOF
 
 echo "         - sources/chartmuseum.yaml"
 cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/chartmuseum.yaml<<EOF
-apiVersion: source.toolkit.fluxcd.io/v1beta1
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
   name: chartmuseum
@@ -159,7 +168,7 @@ EOF
 
 echo "         - apps.yaml"
 cat>${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/clusters/${CLUSTER_NAME}/apps.yaml<<EOF
-apiVersion: kustomize.toolkit.fluxcd.io/v1beta1
+apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
   name: apps

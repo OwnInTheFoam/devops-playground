@@ -17,14 +17,14 @@ rm -r kubeseal-0.23.0-linux-amd64.tar.gz
 Get the latest helm chart version
 ```bash
 helm search hub --max-col-width 80 sealed-secrets | grep "bitnami-labs"
-export SS_VER="2.11.0"
+export SS_VER="2.18.5"
 export CLUSTER_REPO=gitops
 ```
 
 Create the helm source
 ```bash
 sudo flux create source helm sealed-secrets \
-  --url=https://bitnami-labs.github.io/sealed-secrets \
+  --url=https://bitnami.github.io/sealed-secrets \
   --interval=1h \
   --export > "${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/sealed-secrets.yaml"
 ```
