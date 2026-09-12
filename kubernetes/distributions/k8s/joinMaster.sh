@@ -1,32 +1,43 @@
-# TODO This script is incomplete and untested.
-# https://facsiaginsa.com/kubernetes/join-existing-kubernetes-cluster
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Run from existing master node
+DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)
+# shellcheck disable=SC1091
+source "${DIR}/cluster.env"
 
-sudo kubectl get cm kubeadm-config -n kube-system -o yaml > kubeadm-config.yaml
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+  echo "Run as root: sudo -E bash ${0}"
+  exit 1
+fi
 
-# todo Get the ClusterConfiguration
-yq ClusterConfiguration kubeadm-config.yaml
+if [[ ! -f "${DIR}/join-control-plane.sh" ]]; then
+  echo "Missing ${DIR}/join-control-plane.sh. Run InstallServer.sh on ${PRIMARY_CONTROL_PLANE} first."
+  exit 1
+fi
 
-kubeadm init phase upload-certs --upload-certs --config kubeadm-config.yaml
+LOG_FILE="${DIR}/joinMaster.log"
+TASK_NO=0
 
-kubeadm token create --print-join-command > joincluster.sh
+log() { echo "$1" | tee -a "${LOG_FILE}"; }
+task() { TASK_NO=$((TASK_NO + 1)); log "[TASK ${TASK_NO}] $1"; }
+run() { "$@" >>"${LOG_FILE}" 2>&1; }
+run_eval() { eval "$1" >>"${LOG_FILE}" 2>&1; }
 
-cat >>joincluster.sh<<
---control-plane --certificate-key <ceritifcate-key>
-EOF
+run mkdir -p /etc/kubernetes/manifests
 
-# Run on new master node
+if [[ "${CONTROL_PLANE_HA_MODE}" == "kube-vip" ]]; then
+  task "Ensure kube-vip manifest exists on joining control-plane"
+  run ctr image pull "ghcr.io/kube-vip/kube-vip:${KUBE_VIP_VERSION}"
+  run_eval "ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:${KUBE_VIP_VERSION} kvip /kube-vip manifest pod --interface ${CONTROL_PLANE_VIP_IFACE} --address ${CONTROL_PLANE_VIP} --controlplane --arp --leaderElection > /etc/kubernetes/manifests/kube-vip.yaml"
+  run sed -i 's#/etc/kubernetes/admin.conf#/etc/kubernetes/super-admin.conf#g' /etc/kubernetes/manifests/kube-vip.yaml
+  run sed -i 's#mountPath: /etc/kubernetes/super-admin.conf#mountPath: /.kube/config#g' /etc/kubernetes/manifests/kube-vip.yaml
+fi
 
-cat>>/etc/hosts<<EOF
-192.168.0.227 cluster-endpoint
-EOF
+task "Join this node as control-plane"
+run bash "${DIR}/join-control-plane.sh"
 
-echo "[TASK] Run join "
-ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} 'mkdir -p ~/k8s' >>${logFile} 2>&1
-scp -P ${serverPort[$i]} ${DIR}/uninstall.sh ${serverUser[$i]}@${serverlocalIP[$i]}:~/k8s/uninstall.sh >>${logFile} 2>&1
-ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "sed -i 's/.*serverNumber=.*/serverNumber=$i/' ~/k8s/uninstall.sh" >>${logFile} 2>&1
-ssh -t -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} " sudo -S ~/k8s/uninstall.sh"
+task "Verify control-plane status"
+export KUBECONFIG=/etc/kubernetes/admin.conf
+run kubectl get nodes -o wide
 
-./joincluster.sh
-
+log "joinMaster.sh complete (details in ${LOG_FILE})"

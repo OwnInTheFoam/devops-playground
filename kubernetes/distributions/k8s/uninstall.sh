@@ -1,90 +1,76 @@
-#!/bin/bash
-# chmod u+x uninstall.sh
+#!/usr/bin/env bash
+set -euo pipefail
 
-# DEFINES - versions
-kubernetesVer=1.26.7
-containerdVer=1.6.21
-runcVer=1.1.7
-cniPluginVer=1.3.0
-#calicoVer=3.18
-flannelVer=0.21.5
-# SERVERS
-serverNumber=0
-serverName=("server4" "server1" "server2" "server3")
-serverUser=("server4" "server1" "server2" "server3")
-serversshIP=("123.456.78.910" "123.456.78.910" "123.456.78.910" "123.456.78.910")
-serverlocalIP=("192.168.0.227" "192.168.0.215" "192.168.0.225" "192.168.0.226")
-servernetworkIP="192.168.0.0/24"
-servercniIP="10.244.0.0/16"
-serverPort=("22004" "22001" "22002" "22003")
-# VARIABLE DEFINES
-DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-cd ${DIR}
-logFile="${DIR}/uninstall.log"
-touch ${logFile}
-#logFile="/dev/null"
+DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)
+# shellcheck disable=SC1091
+source "${DIR}/cluster.env"
 
-echo "[TASK] Remove from /etc/hosts file"
-sudo sed -i '/192.168.0.215/d' /etc/hosts
-sudo sed -i '/192.168.0.225/d' /etc/hosts
-sudo sed -i '/192.168.0.226/d' /etc/hosts
-sudo sed -i '/192.168.0.227/d' /etc/hosts
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+  echo "Run as root: sudo -E bash ${0}"
+  exit 1
+fi
 
-echo "[TASK] Uninstall Kubernetes components (kubeadm, kubelet and kubectl)"
-sudo kubeadm reset --force >>${logFile} 2>&1
-sudo apt -qq -y purge kubeadm kubectl kubelet kubernetes-cni kube* >>${logFile} 2>&1
-sudo apt -qq -y autoremove >>${logFile} 2>&1
-sudo rm -rf /etc/cni /etc/kubernetes /var/lib/dockershim /var/lib/etcd /var/lib/kubelet /var/run/kubernetes /usr/local/bin/kube*
-sudo rm -rf ~/.kube /root/.kube /bin/kubeadm /bin/kubectl /bin/kubelet
-#iptables -F && iptables -X
-#iptables -t nat -F && iptables -t nat -X
-#iptables -t raw -F && iptables -t raw -X
-#iptables -t mangle -F && iptables -t mangle -X
+LOG_FILE="${DIR}/uninstall.log"
+TASK_NO=0
 
-echo "[TASK] Uninstall containerd runtime"
-sudo systemctl stop containerd >>${logFile} 2>&1
-sudo systemctl disable containerd >>${logFile} 2>&1
-sudo rm -rf /etc/systemd/system/containerd.service /usr/lib/systemd/system/containerd.service
-sudo systemctl daemon-reload
-sudo apt purge -qq -y --auto-remove apt-transport-https >>${logFile} 2>&1
-sudo apt purge -qq -y --auto-remove containerd >>${logFile} 2>&1
-sudo rm -rf /usr/local/bin/containerd* /usr/local/bin/ctr /bin/containerd* /bin/ctr /opt/containerd /opt/cni /usr/local/sbin/runc /etc/containerd
+log() { echo "$1" | tee -a "${LOG_FILE}"; }
+task() { TASK_NO=$((TASK_NO + 1)); log "[TASK ${TASK_NO}] $1"; }
+run() { "$@" >>"${LOG_FILE}" 2>&1; }
+run_eval() { eval "$1" >>"${LOG_FILE}" 2>&1; }
 
-echo "[TASK] Remove cni network link"
-sudo ip link delete flannel.1 >>${logFile} 2>&1
+ARCH=$(dpkg --print-architecture)
 
-echo "[TASK] Remove Kernel settings"
-sudo sed -i '/net.bridge.bridge-nf-call-ip6tables/d' /etc/sysctl.d/kubernetes.conf
-sudo sed -i '/net.bridge.bridge-nf-call-iptables/d' /etc/sysctl.d/kubernetes.conf
-sudo sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.d/kubernetes.conf
-sudo sysctl --system >>${logFile} 2>&1
+task "Reset kubeadm and remove Kubernetes state"
+run kubeadm reset -f || true
+run rm -rf /etc/cni/net.d /etc/kubernetes /var/lib/etcd /var/lib/kubelet /var/lib/cni /var/run/kubernetes
+run rm -rf "$HOME/.kube" /root/.kube
 
-echo "[TASK] Remove container.d config and kernel modules"
-sudo sed -i '/overlay/d' /etc/modules-load.d/containerd.conf
-sudo sed -i '/br_netfilter/d' /etc/modules-load.d/containerd.conf
-sudo modprobe -r overlay
-sudo modprobe -r br_netfilter
+task "Remove Kubernetes packages"
+run apt-get purge -y kubeadm kubelet kubectl kubernetes-cni || true
+run apt-get autoremove -y || true
+run rm -f /etc/apt/sources.list.d/kubernetes.list
+run rm -f /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
-echo "[TASK] Delete alias"
-sed -i '/kubectl/d' ~/.bash_aliases
-sed -i '/flux/d' ~/.bash_aliases
+task "Remove Cilium and kube-vip artifacts"
+run rm -f /etc/kubernetes/manifests/kube-vip.yaml
+run ip link delete cilium_host || true
+run ip link delete cilium_net || true
+run ip link delete cilium_vxlan || true
+run_eval "iptables-save | grep -iv cilium | iptables-restore" || true
+run_eval "ip6tables-save | grep -iv cilium | ip6tables-restore" || true
 
-echo "[TASK] Delete bash completion and env"
-sed -i '/kubectl/d' ~/.bashrc
-sudo sed -i '/KUBE/d' /etc/environment
+task "Remove HA endpoint services"
+run systemctl stop keepalived || true
+run systemctl disable keepalived || true
+run systemctl stop haproxy || true
+run systemctl disable haproxy || true
+run apt-get purge -y keepalived haproxy || true
+run rm -f /etc/keepalived/keepalived.conf /etc/haproxy/haproxy.cfg
 
-echo "[TASK] Delete temporary files from ${DIR}"
-rm -rf ${DIR}/containerd-${containerdVer}-linux-$(dpkg --print-architecture).tar.gz
-rm -rf ${DIR}/runc.$(dpkg --print-architecture)
-rm -rf ${DIR}/cni-plugins-linux-$(dpkg --print-architecture)-v${cniPluginVer}.tgz
-rm -rf ${DIR}/kubeinit.log
-rm -rf ${DIR}/kube-flannel.yml
-rm -rf ${DIR}/joincluster.sh
-rm -rf ${DIR}/setup.log
-rm -rf ${DIR}/Install.log
-rm -rf ${DIR}/InstallServer.log
-rm -rf ${DIR}/InstallAgent.log
-rm -rf ${HOME}/k8s
-rm -rf ${HOME}/.kube
+task "Stop and remove containerd/runc/CNI"
+run systemctl stop kubelet || true
+run systemctl disable kubelet || true
+run systemctl stop containerd || true
+run systemctl disable containerd || true
+run rm -f /usr/local/lib/systemd/system/containerd.service /etc/systemd/system/containerd.service
+run systemctl daemon-reload
+run rm -f /usr/local/sbin/runc
+run rm -f /usr/local/bin/containerd /usr/local/bin/containerd-shim* /usr/local/bin/ctr
+run rm -rf /etc/containerd /var/lib/containerd /run/containerd
+run rm -rf /opt/cni/bin/*
 
-echo "COMPLETE!"
+task "Remove sysctl/modules changes"
+run rm -f /etc/modules-load.d/k8s.conf
+run rm -f /etc/sysctl.d/99-k8s.conf
+run modprobe -r br_netfilter || true
+run modprobe -r overlay || true
+run sysctl --system || true
+
+task "Clean temporary artifacts"
+run rm -f "${DIR}/containerd-${CONTAINERD_VERSION}-linux-${ARCH}.tar.gz"
+run rm -f "${DIR}/runc.${ARCH}"
+run rm -f "${DIR}/cni-plugins-linux-${ARCH}-v${CNI_PLUGIN_VERSION}.tgz"
+run rm -f "${DIR}/crictl-v1.34.0-linux-${ARCH}.tar.gz"
+run rm -f "${DIR}/join-worker.sh" "${DIR}/join-control-plane.sh" "${DIR}/kubeinit.log"
+
+log "uninstall.sh complete (details in ${LOG_FILE})"
