@@ -374,7 +374,7 @@ For example;
 `MAILU_DOMAIN="example.com"`
 `MAILU_HOSTNAMES=(mail.example.com)`
 `MAILU_ADMIN_DOMAIN="postmaster"`
-`MAILU_ADMIN_PASSWORD="yourPassword"`
+`MAILU_ADMIN_PASSWORD="<REDACTED>"`
 `MAILU_SUBNET="10.244.0.0/16"`
 To retrieve the cluster subnet you may get `podSubnet` from
 ```bash
