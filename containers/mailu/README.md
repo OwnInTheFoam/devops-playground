@@ -51,11 +51,11 @@ yq -i '.clusterDomain="example.com"' /${HOME}/mailu/values.yaml
 yq -i '.domain="example.com"' /${HOME}/mailu/values.yaml
 yq -i '.mailuVersion="1.9.45"' /${HOME}/mailu/values.yaml
 yq -i '.hostnames[0]="mail.example.com"' /${HOME}/mailu/values.yaml
-yq -i '.secretKey="12345test"' /${HOME}/mailu/values.yaml
+yq -i '.secretKey="<REDACTED>"' /${HOME}/mailu/values.yaml
 yq -i '.persistence.size="20Gi"' /${HOME}/mailu/values.yaml
 #yq -i '.ingress.annotations="kubernetes.io/ingress.class: traefik-external"' /${HOME}/mailu/values.yaml
 yq -i '.initialAccount.domain="example.com"' /${HOME}/mailu/values.yaml
-yq -i '.initialAccount.password="12345test"' /${HOME}/mailu/values.yaml
+yq -i '.initialAccount.password="<REDACTED>"' /${HOME}/mailu/values.yaml
 yq -i '.initialAccount.username="postmaster"' /${HOME}/mailu/values.yaml
 yq -i '.front.hostPort.enabled="false"' /${HOME}/mailu/values.yaml
 yq -i '.front.externalService.enabled="true"' /${HOME}/mailu/values.yaml
@@ -240,7 +240,7 @@ cat '/${HOME}/tigase/kubernetes-admin@kubernetes/envs/mailu-values.yaml' >> '/${
     initialAccount:
       username: "postmaster"
       domain: "example.com"
-      password: "yourPassword"
+      password: "<REDACTED>"
 ```
 Update repository and reconcile
 ```bash

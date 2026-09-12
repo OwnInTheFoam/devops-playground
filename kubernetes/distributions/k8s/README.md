@@ -1,324 +1,327 @@
-# Kubernetes
-[Github CHANGELOG](https://github.com/kubernetes/kubernetes/tree/master/CHANGELOG)
+# Kubernetes HA kubeadm on Ubuntu 26.04 (HAProxy + Keepalived + Cilium)
 
-## Helpful resources
-- [Kubernetes container runtimes](https://kubernetes.io/docs/setup/production-environment/container-runtimes/)
-- [Installing kubeadm cluster](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/)
-- [Installing containerd](https://github.com/containerd/containerd/blob/main/docs/getting-started.md)
-- [Installing flannel](https://github.com/flannel-io/flannel#getting-started-on-kubernetes)
-- Kubernetes v1.24.0 by [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes/tree/master/vagrant-provisioning)
+This runbook deploys a 4-node local cluster with stacked etcd, external API endpoint HA (HAProxy + Keepalived), and Cilium CNI.
 
-### Steps
+## Pinned versions
 
-You'll need to know which kubernetes version supports which version containerd version. Use the [changelog](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.26.md#changelog-since-v1266) to determine the dependency versions.
+```bash
+K8S_VERSION=1.34.6
+CONTAINERD_VERSION=2.1.7
+CILIUM_VERSION=v1.19.3
+CILIUM_CLI_VERSION=v0.18.9
+KUBE_VIP_VERSION=v1.1.2
+RUNC_VERSION=1.4.2
+CNI_PLUGIN_VERSION=1.9.1
+CONTROL_PLANE_ENDPOINT=192.168.0.220:6443
+CONTROL_PLANE_VIP_IFACE=eno1
+CONTROL_PLANE_HA_MODE=keepalived_haproxy
+```
 
-For this tutorial we will use:
-- Kubernetes: 1.26.7
-- containerd: 1.6.21
-- runc: 1.1.7
-- cni plugin: 1.3.0
-- flannel: 0.21.5 ~~calico: 3.18.0~~
+## Topology
 
-Nodes to be setup:
-- server1: 192.168.0.215
-- server2: 192.168.0.225
-- server3: 192.168.0.226
+- `server1` `192.168.0.221`: worker-only, dedicated heavy workloads
+- `server2` `192.168.0.222`: control-plane + worker
+- `server3` `192.168.0.223`: control-plane + worker
+- `server4` `192.168.0.224`: first control-plane + worker
 
-#### On all server and agent nodes
-1. **Ensure root user is created and logged in**
+Bootstrap order:
+- `server4` init first
+- `server3` join control-plane
+- `server2` join control-plane
+- `server1` join worker
 
-    To log into root:
-    ```
-    sudo su -
-    ```
-    If no root user available then create root with password:
-    ```
-    sudo passwd root
-    sudo passwd -u root 
-    ```
+## SSH maps
 
-2. **Ensure firewall is disabled**
+From current machine:
 
-    Using systemctl:
-    ```
-    systemctl disable --now ufw
-    ```
-    Using ufw:
-    ```
-    ufw disable
-    ```
-    Check the status:
-    ```
-    ufw status
-    ```
+```bash
+ssh -p 22001 server1@<REDACTED>
+ssh -p 22002 server2@<REDACTED>
+ssh -p 22003 server3@<REDACTED>
+ssh -p 22004 server4@<REDACTED>
+```
 
-3. **Disable swap**
+From `server4`:
 
-    To check for swaps:
-    ```
-    swapon -s
-    ```
-    To disable swaps:
-    ```
-    swapoff -a
-    ```
-    Swaps listed on fstab will re-enable on reboot:
-    ```
-    grep swap /etc/fstab
-    ```
-    To have swaps not enable after reboot:
-    ```
-    sed -i '/swap/d' /etc/fstab
-    ```
+```bash
+ssh server1@192.168.0.221 -p 22001
+ssh server2@192.168.0.222 -p 22002
+ssh server3@192.168.0.223 -p 22003
+```
 
-4. **Enable and Load Kernel modules [See](https://kubernetes.io/docs/setup/production-environment/container-runtimes/)**
+## Important model boundaries
 
-    Add containerd.conf to kernel modules:
-    ```
-    cat >>/etc/modules-load.d/containerd.conf<<EOF
-    overlay
-    br_netfilter
-    EOF
-    ```
-    Use modprobe to add the loadable kernel modules to the Linux kernel:
-    ```
-    modprobe overlay
-    modprobe br_netfilter
-    ```
-    
-5. **Update sysctl kernel settings for kubernetes networking [See](https://kubernetes.io/docs/setup/production-environment/container-runtimes/)**
+- API endpoint `192.168.0.220:6443` is owned by Keepalived + HAProxy, not MetalLB.
+- MetalLB is only for `Service type=LoadBalancer` after cluster bootstrap.
+- `kube-proxy` is retained.
+- This repo includes phased scripts; do not run them out of order.
 
-    Add the kubernetes conf to sysctl.d:
-    Note cat > will overwrite and cat >> will append, choose wisely.
-    ```
-    cat >/etc/sysctl.d/kubernetes.conf<<EOF
-    net.bridge.bridge-nf-call-ip6tables = 1
-    net.bridge.bridge-nf-call-iptables = 1
-    net.ipv4.ip_forward = 1
-    EOF
-    ```
-    Kernel configuration changes will only take effect after reboot. To take effect immedately run:
-    ```
-    sysctl --system
-    ```
+## Prerequisites (all nodes)
 
-6. **Install [containerd](https://github.com/containerd/containerd#hello-kubernetes-v124) and other dependencies**
+- Fresh Ubuntu `26.04 LTS`
+- Correct hostnames (`server1..server4`)
+- Time sync healthy (`timedatectl status`)
+- Passwordless sudo for the SSH users used above
+- Layer-2 reachability on `192.168.0.0/24`
+- Confirm VIP is free before bootstrap:
 
-    ```
-    apt update
-    apt install -y apt-transport-https
-    ```
-    Install correct containerd version, first check the version/s your ubuntu apt cache has available:
-    ```
-    apt-cache policy containerd
-    ```
-    If the correct version is listed then run:
-    ```
-    apt install -y containerd=1.6.18-0ubuntu3
-    ```
-    Otherwise install the correct version manually by downloading the [release](https://github.com/containerd/containerd/releases/tag/v1.6.18).
-    You will need to know the architecture of your device:
-    ```
-    dpkg --print-architecture
-    wget https://github.com/containerd/containerd/releases/download/v1.6.18/containerd-1.6.18-linux-amd64.tar.gz
-    ```
-    Unpack the file to /usr/local
-    ```
-    tar Cxzvf /usr/local containerd-1.6.18-linux-amd64.tar.gz
-    ```
-    Install containerd's [runc](https://github.com/opencontainers/runc/releases):
-    ```
-    wget https://github.com/opencontainers/runc/releases/download/v1.1.4/runc.amd64
-    install -m 755 runc.amd64 /usr/local/sbin/runc
-    ```
-    Setup containerd's Container Network Interface (CNI) plugin
-    ```
-    wget https://github.com/containernetworking/plugins/releases/download/v1.1.4/cni-plugins-linux-amd64-v1.1.4.tgz
-    mkdir -p /opt/cni/bin
-    tar Cxzvf /opt/cni/bin cni-plugins-linux-amd64-v1.1.4.tgz
-    ```
-    Configure containerd:
-    ```
-    mkdir -p /etc/containerd
-    containerd config default > /etc/containerd/config.toml
-    sed -i 's/SystemdCgroup \= false/SystemdCgroup \= true/g' /etc/containerd/config.toml
-    ```
-    Download the systemd file
-    ```
-    curl -L https://raw.githubusercontent.com/containerd/containerd/main/containerd.service -o /etc/systemd/system/containerd.service
-    ```
-    Restart containerd:
-    ```
-    systemctl restart containerd
-    systemctl daemon-reload
-    systemctl enable --now containerd
-    ```
-    Verify systemd service
-    ```
-    systemctl status containerd
-    ```
+```bash
+ping -c 2 192.168.0.220 || true
+nc -vz 192.168.0.220 6443 || true
+ip route | grep 192.168.0.0/24
+ip -br a
+```
 
-7. **Add kubernetes repository**
+## Phase A: Prepare every node
 
-    ```
-    curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-    apt-add-repository "deb http://apt.kubernetes.io/ kubernetes-xenial main"
-    ```
+Option 1 (recommended wrapper):
 
-8. **Install kubernetes components**
+```bash
+cd kubernetes/distributions/k8s
+chmod +x *.sh
+./setup.sh prep-all
+```
 
-    ```
-    apt install -y kubeadm=1.26.1-00 kubelet=1.26.1-00 kubectl=1.26.1-00
-    ```
+Option 2 (manual on each node):
 
-    Enable kubectl completion bash
-    ```bash
-    cat>>${HOME}/.bashrc<<EOF
-    source <(kubectl completion bash)
-    EOF
-    ```
+```bash
+sudo -E bash ~/k8s/Install.sh
+```
 
-9. **OPTIONAL - Enable ssh password authentication**
+Gate checks (all nodes):
 
-    If you have not setup ssh authentication with key pair then you will need to permit root login with password.
-    ```
-    sed -i 's/^PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-    echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config
-    systemctl reload sshd
-    ```
-    
-10. **OPTIONAL - Set root password**
+```bash
+swapon --show
+containerd --version
+systemctl is-active containerd
+sudo crictl info >/dev/null && echo ok
+kubeadm version -o short
+apt-mark showhold | grep -E 'kubelet|kubeadm|kubectl'
+```
 
-    Do not do this if you already have a root password!
-    ```
-    echo -e "kubeadmin\nkubeadmin" | passwd root
-    echo "export TERM=xterm" >> /etc/bash.bashrc
-    ```
-    
-11. **Update /etc/hosts file**
+Do not continue until all nodes pass.
 
-    ```
-    cat >>/etc/hosts<<EOF
-    192.168.0.215   server1.local   server1
-    192.168.0.225   server2.local   server2
-    192.168.0.226   server3.local   server3
-    EOF
-    ```
+## Phase A.1: Install HA endpoint services on control-plane nodes
 
-#### On server nodes
+From your control machine:
 
-1. **Pull required containers**
+```bash
+cd kubernetes/distributions/k8s
+./setup.sh prep-ha
+```
 
-    ```
-    kubeadm config images pull --kubernetes-version=1.26.1
-    ```
+This installs and configures:
+- `haproxy` listening on `:6443` and forwarding to `server4/server3/server2`
+- `keepalived` managing VIP `192.168.0.220` on `eno1`
 
-2. **Initialise kubernetes cluster**
+Gate checks:
 
-    ```
-    kubeadm init --kubernetes-version=1.26.1 --apiserver-advertise-address=192.168.0.215 --pod-network-cidr=10.244.0.0/16 >> /root/kubeinit.log
-    ```
+```bash
+nc -vz 192.168.0.220 6443
+```
 
-3. **Deploy [calico](https://github.com/projectcalico/calico) OR [flannel](https://github.com/flannel-io/flannel#getting-started-on-kubernetes) network**
+A `connection refused` is acceptable before API server starts; timeout/no-route is not.
 
-    ```
-    kubectl --kubeconfig=/etc/kubernetes/admin.conf create -f https://docs.projectcalico.org/v3.18/manifests/calico.yaml
-    ```
-    ```
-    wget --no-verbose https://raw.githubusercontent.com/flannel-io/flannel/v0.21.2/Documentation/kube-flannel.yml
-    # You may need to change the network if it is not the default:
-    sed -i 's/"Network":.*/"Network": "10.244.0.0/16"/' kube-flannel.yml
-    kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f kube-flannel.yml
-    ```
+## Phase B: Initialize first control-plane (`server4`)
 
-4. **Cluster join and save the command to script file**
+```bash
+cd ~/k8s
+sudo -E bash ./InstallServer.sh
+```
 
-    ```
-    kubeadm token create --print-join-command > /root/joincluster.sh
-    ```
+This phase:
+- runs `kubeadm init --control-plane-endpoint 192.168.0.220:6443`
+- generates join artifacts:
+  - `~/k8s/join-control-plane.sh`
+  - `~/k8s/join-worker.sh`
 
-5. **Setup kube config for non root users**
+Gate checks (`server4`):
 
-    ```
-    mkdir -p $HOME/.kube
-    sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-    sudo chown $(id -u):$(id -g) $HOME/.kube/config
-    ```
+```bash
+export KUBECONFIG=/etc/kubernetes/admin.conf
+kubectl get nodes -o wide
+kubectl get pods -A
+curl -k https://192.168.0.220:6443/healthz
+```
 
-6. **Export kubeconfig env**
+Do not continue until API endpoint is healthy.
 
-    ```
-    export KUBECONFIG=/etc/kubernetes/admin.conf
-    ```
+## Phase C: Install Cilium (from `server4`)
 
-7. **Verify cluster connection and status**
+Install Cilium CLI:
 
-    ```
-    kubectl get nodes
-    kubectl get cs
-    ```
+```bash
+ARCH=$(dpkg --print-architecture)
+if [ "$ARCH" = "amd64" ]; then CLI_ARCH=amd64; else CLI_ARCH=arm64; fi
+curl -L --fail --remote-name-all \
+  https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${CLI_ARCH}.tar.gz \
+  https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${CLI_ARCH}.tar.gz.sha256sum
+sha256sum --check cilium-linux-${CLI_ARCH}.tar.gz.sha256sum
+sudo tar xzvfC cilium-linux-${CLI_ARCH}.tar.gz /usr/local/bin
+```
 
-#### On agent nodes
+Install Cilium:
 
-1. **Join the cluster**
+```bash
+export KUBECONFIG=/etc/kubernetes/admin.conf
+cilium install \
+  --version ${CILIUM_VERSION} \
+  --set kubeProxyReplacement=false \
+  --set ipam.mode=kubernetes \
+  --set hubble.enabled=true
+```
 
-    ```
-    *run joincluster.sh command from output of servers kubeadm token create*
-    ```
+Gate checks:
 
-2. **Setup kube config for non root users**
+```bash
+cilium status --wait
+kubectl -n kube-system get pods -o wide
+kubectl get nodes
+```
 
-    ```
-    mkdir -p $HOME/.kube
-    *copy server kubeconfig file to $HOME/.kube/config and ensure server parameter is ip of server
-    sudo chown $(id -u):$(id -g) $HOME/.kube/config
-    ```
+Do not continue until Cilium is healthy and nodes are `Ready`.
 
-3. **Export kubeconfig env**
+## Phase D: Join additional control-planes (`server3`, then `server2`)
 
-    ```
-    export KUBECONFIG=$HOME/.kube/config
-    ```
-    
-4. **Verify cluster connection and status**
+From current machine:
 
-    ```
-    kubectl get nodes
-    kubectl get cs
-    ```
+```bash
+cd kubernetes/distributions/k8s
+./setup.sh join-cp server3
+./setup.sh join-cp server2
+```
 
-#### Test pod deployment
+Or manual per node:
 
-1. **Check current pods**
+```bash
+scp -P 22003 ~/git/devops-playground/kubernetes/distributions/k8s/join-control-plane.sh server3@192.168.0.223:~/k8s/
+scp -P 22003 ~/git/devops-playground/kubernetes/distributions/k8s/join-worker.sh server3@192.168.0.223:~/k8s/
+sudo -E bash ~/k8s/joinMaster.sh
+```
 
-    ```
-    kubect get pods -A
-    ```
+Gate checks (`server4`):
 
-2. **Create deployment**
+```bash
+export KUBECONFIG=/etc/kubernetes/admin.conf
+kubectl get nodes -o wide
+kubectl -n kube-system get pods -l tier=control-plane -o wide
+kubectl -n kube-system get pods -l component=etcd -o wide
+```
 
-    ```
-    kubectl create deploy nginx --image nginx
-    kubectl get all
-    ```
+Do not continue until all three control-planes are healthy.
 
-3. **Expose pod with NodePort**
+## Phase E: Join worker (`server1`)
 
-    ```
-    kubectl expose deploy nginx --port 80 --type NodePort
-    kubectl get svc
-    ```
+From current machine:
 
-4. **Test pod access**
+```bash
+cd kubernetes/distributions/k8s
+./setup.sh join-worker server1
+```
 
-    On each node try access the NodePort assigned to the service.
-    ```
-    curl 192.168.0.225:31127
-    ```
+Or manual on `server1`:
 
-5. **Remove pod**
+```bash
+scp -P 22001 ~/git/devops-playground/kubernetes/distributions/k8s/join-worker.sh server1@192.168.0.221:~/k8s/
+sudo -E bash ~/k8s/InstallAgent.sh
+```
 
-    ```
-    kubectl delete svc/nginx
-    kubectl delete deploy nginx
-    ```
+Gate checks (`server4`):
+
+```bash
+export KUBECONFIG=/etc/kubernetes/admin.conf
+kubectl get nodes -o wide
+```
+
+## Phase F: Dedicated heavy-workload placement on `server1`
+
+Apply taint + label:
+
+```bash
+kubectl taint nodes server1 workload=heavy:NoSchedule
+kubectl label nodes server1 workload=heavy
+```
+
+Example workload selector/toleration:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: heavy-nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: heavy-nginx
+  template:
+    metadata:
+      labels:
+        app: heavy-nginx
+    spec:
+      nodeSelector:
+        workload: heavy
+      tolerations:
+      - key: "workload"
+        operator: "Equal"
+        value: "heavy"
+        effect: "NoSchedule"
+      containers:
+      - name: nginx
+        image: nginx:stable
+```
+
+## Functional validation
+
+```bash
+kubectl create deployment smoke --image=nginx:stable
+kubectl expose deployment smoke --port 80 --type NodePort
+kubectl get svc smoke -o wide
+kubectl get pods -o wide
+```
+
+Test east-west and node access with returned NodePort from multiple nodes, then cleanup:
+
+```bash
+kubectl delete svc smoke
+kubectl delete deployment smoke
+```
+
+## Stability validation (reboot gates)
+
+Reboot one node at a time, wait for ready:
+
+```bash
+kubectl get nodes
+kubectl get pods -A
+cilium status
+```
+
+Include at least one control-plane reboot in this sequence.
+
+## Script index
+
+- `cluster.env`: shared versions/topology/SSH map
+- `Install.sh`: all-node base prep
+- `InstallApiEndpointHA.sh`: HAProxy + Keepalived API endpoint setup on control-plane nodes
+- `InstallServer.sh`: primary control-plane init (`server4`)
+- `joinMaster.sh`: additional control-plane join
+- `InstallAgent.sh`: worker join
+- `setup.sh`: phased wrapper
+- `uninstall.sh`: local teardown
+- `uninstallAll.sh`: remote teardown for all nodes
+
+## Teardown
+
+Single node:
+
+```bash
+sudo -E bash ./uninstall.sh
+```
+
+All nodes:
+
+```bash
+./uninstallAll.sh
+```
+

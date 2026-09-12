@@ -243,7 +243,7 @@ rpcbind=0.0.0.0
 rpcallowip=192.168.0.0/24
 rpcport=18332
 rpcuser=rpc_username
-rpcpassword=rpc_password
+rpcpassword=<REDACTED>
 wallet=watchonly
 fallbackfee=0.00001
 paytxfee=0.00001
@@ -388,7 +388,7 @@ rpcbind=0.0.0.0
 rpcallowip=192.168.0.0/24
 rpcport=48332
 rpcuser=rpc_username
-rpcpassword=rpc_password
+rpcpassword=<REDACTED>
 wallet=watchonly
 fallbackfee=0.00001
 paytxfee=0.00001
@@ -529,7 +529,7 @@ rpcport=8332
 rpcbind=0.0.0.0
 rpcallowip=192.168.0.0/24
 rpcuser=your_rpc_username
-rpcpassword=your_rpc_password
+rpcpassword=<REDACTED>
 wallet=watchonly
 fallbackfee=0.00001
 paytxfee=0.00001
@@ -540,7 +540,7 @@ Restart node:
 ```sh
 # Gracefully shutdown bitcoin core
 bitcoin-cli stop
-#bitcoin-cli -rpcconnect=192.168.0.224 -rpcport=8332 -rpcuser=add -rpcpassword=add stop
+#bitcoin-cli -rpcconnect=192.168.0.224 -rpcport=8332 -rpcuser=add -rpcpassword=<REDACTED> stop
 # Wait for log
 tail -f ~/.bitcoin/debug.log
 # Relaunch
@@ -572,12 +572,12 @@ Enable SSL Encryption for RPC
 Use a ssh tunnel
 ```sh
 ssh -L 48332:local_ip:48332 user@public_ip -p port
-ssh -f -N -L 48332:localhost:48332 -p 22006 server6@110.151.44.98
+ssh -f -N -L 48332:localhost:48332 -p 22006 server6@<REDACTED>
 ps aux grep ssh
 
 bitcoin-cli -rpcconnect=$BITCOINCORE_HOST -rpcport=$BITCOINCORE_PORT -rpcuser=$BITCOINCORE_RPCUSER -rpcpassword=$BITCOINCORE_RPCPASSWORD getblockchaininfo
 
-bitcoin-cli -chain=testnet4 -rpcconnect=192.168.0.223 -rpcport=18332 -rpcuser=add -rpcpassword=add getblockchaininfo
+bitcoin-cli -chain=testnet4 -rpcconnect=192.168.0.223 -rpcport=18332 -rpcuser=add -rpcpassword=<REDACTED> getblockchaininfo
 ```
 
 ## Usage

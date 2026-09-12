@@ -12,7 +12,7 @@
 # Persistant storage (longhorn)
 
 # DEFINES
-CM_VER="1.14.3" # helm search hub --max-col-width 80 cert-manager | grep "/cert-manager/cert-manager"
+CM_VER="1.20.2" # helm search hub --max-col-width 80 cert-manager | grep "/cert-manager/cert-manager"
 CLUSTER_REPO=gitops
 CLUSTER_NAME=cluster0
 
@@ -62,11 +62,22 @@ echo "[TASK] Install cmctl (cm command line tool)"
 cd ${HOME}/${K8S_CONTEXT}
 if ! command -v "cmctl" &> /dev/null; then
   echo "  - cmctl could not be found! Installing..."
-  curl -fsSL -o cmctl.tar.gz https://github.com/cert-manager/cert-manager/releases/latest/download/cmctl-linux-amd64.tar.gz
-  tar xzf cmctl.tar.gz
+  ARCH=$(uname -m)
+  case "$ARCH" in
+    x86_64|amd64)
+      CM_CTL_ARCH="amd64"
+      ;;
+    aarch64|arm64)
+      CM_CTL_ARCH="arm64"
+      ;;
+    *)
+      echo "  - Unsupported architecture for cmctl: ${ARCH}. Exiting..."
+      exit
+      ;;
+  esac
+  curl -fsSL -o cmctl https://github.com/cert-manager/cmctl/releases/latest/download/cmctl_linux_${CM_CTL_ARCH}
+  chmod +x cmctl
   sudo mv cmctl /usr/local/bin
-  rm -r cmctl.tar.gz
-  rm -r LICENSE
 fi
 echo "  - cmctl version: $(sudo cmctl version --short)"
 
@@ -174,8 +185,8 @@ read -s -p "Enter your SSL (cloudflare) email: " SSL_EMAIL
 read -s -p "Enter your cloudflare domain: " CLOUDFLARE_DOMAIN
 read -s -p "Enter your cloudflare secret key: " CLOUDFLARE_SECRET_KEY
 
-export SSL_EMAIL=bookity.au@protonmail.com
-export CLOUDFLARE_DOMAIN=bookity.au
+export SSL_EMAIL=<REDACTED>
+export CLOUDFLARE_DOMAIN=<REDACTED>
 export CLOUDFLARE_SECRET_KEY=<REDACTED>
 
 echo "[TASK]   - http01 issuer's"
@@ -314,7 +325,7 @@ metadata:
 spec:
   secretName: ${CLOUDFLARE_DOMAIN}-staging-tls
   issuerRef:
-    name: letsencrypt-staging
+    name: letsencrypt-staging-dns
     kind: ClusterIssuer
   commonName: "*.local.${CLOUDFLARE_DOMAIN}"
   dnsNames:

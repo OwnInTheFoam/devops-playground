@@ -12,7 +12,10 @@
 # Certificate manager (kubernetes-dashboard)
 
 # DEFINES
-DA_VER="6.0.8" # helm search hub --max-col-width 80 dashboard/kubernetes-dashboard | grep "/dashboard/kubernetes-dashboard"
+#helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
+#helm repo update
+#helm search repo kubernetes-dashboard/kubernetes-dashboard --versions
+DA_VER="6.0.8"
 CLUSTER_REPO=gitops
 CLUSTER_NAME=cluster0
 

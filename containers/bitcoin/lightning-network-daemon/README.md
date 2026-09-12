@@ -22,7 +22,7 @@ rpcbind=0.0.0.0
 rpcallowip=192.168.0.0/24
 rpcport=48332
 rpcuser=<your-user>
-rpcpassword=<your-pass>
+rpcpassword=<REDACTED>
 # ZMQ (loopback is fine)
 zmqpubrawblock=tcp://127.0.0.1:28332
 zmqpubrawtx=tcp://127.0.0.1:28333
@@ -68,7 +68,7 @@ bitcoin.node=bitcoind
 [Bitcoind]
 bitcoind.rpchost=127.0.0.1:43324
 bitcoind.rpcuser=<your-user>
-bitcoind.rpcpass=<your-pass>
+bitcoind.rpcpass=<REDACTED>
 bitcoind.zmqpubrawblock=tcp://127.0.0.1:28332
 bitcoind.zmqpubrawtx=tcp://127.0.0.1:28333
 EOF

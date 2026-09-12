@@ -2,14 +2,17 @@
 # chmod u+x uninstall.sh
 
 # DEFINES - versions
-LH_VER=1.6.0 # helm search hub --max-col-width 80 longhorn | grep "/longhorn/longhorn"
+LH_VER=1.11.2 # helm search hub --max-col-width 80 longhorn | grep "/longhorn/longhorn"
 # VARIABLE DEFINES
 CLUSTER_REPO=gitops
 CLUSTER_NAME=cluster0
 
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-logFile="${DIR}/install.log"
+logFile="${DIR}/flux-uninstall.log"
 #logFile="/dev/null"
+
+echo "[TASK] Enable Longhorn uninstall confirmation"
+sudo kubectl -n longhorn-system patch settings.longhorn.io deleting-confirmation-flag --type=merge -p '{"value":"true"}'
 
 echo "[TASK] Remove longhorn manifest directory"
 rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/longhorn-system
@@ -20,10 +23,10 @@ rm -f kustomization.yaml
 kustomize create --autodetect --recursive
 
 echo "[TASK] Delete helmrelease"
-sudo flux delete helmrelease longhorn
+sudo flux delete helmrelease longhorn --namespace="flux-system"
 
 echo "[TASK] Delete the helm source"
-sudo flux delete source helm longhorn
+sudo flux delete source helm longhorn --namespace="flux-system"
 
 echo "[TASK] Remove metallb source"
 rm -rf ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/longhorn.yaml
