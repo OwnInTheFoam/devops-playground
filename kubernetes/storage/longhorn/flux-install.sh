@@ -11,13 +11,13 @@
 # ingress-nginx
 
 # DEFINES - versions
-LH_VER=1.6.0 # helm search hub --max-col-width 80 longhorn | grep "/longhorn/longhorn"
+LH_VER=1.11.2 # helm search hub --max-col-width 80 longhorn | grep "/longhorn/longhorn"
 # VARIABLE DEFINES
 CLUSTER_REPO=gitops
 CLUSTER_NAME=cluster0
 
 DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-logFile="${DIR}/install.log"
+logFile="${DIR}/flux-install.log"
 #logFile="/dev/null"
 
 echo "[CHECK] Required environment variables"
@@ -31,8 +31,14 @@ for VAR in "${REQUIRED_VARS[@]}"; do
   fi
 done
 
+KUBECONFIG_PATH="${KUBECONFIG:-${HOME}/.kube/config}"
+if [[ ! -f "${KUBECONFIG_PATH}" ]]; then
+  echo "  - kubeconfig not found at ${KUBECONFIG_PATH}. Exiting..."
+  exit
+fi
+
 echo "[CHECK] Required packages installed"
-REQUIRED_CMDS="flux kustomize git yq openssl"
+REQUIRED_CMDS="flux kustomize git yq openssl curl helm kubectl kubeseal"
 for CMD in $REQUIRED_CMDS; do
   if ! command -v "$CMD" &> /dev/null; then
       echo "  - $CMD could not be found! Exiting..."
@@ -58,14 +64,42 @@ for CMD in $REQUIRED_CMDS; do
   fi
 done
 
-echo "[CHECK] Longhorn check requirements script"
-curl -sSfL https://raw.githubusercontent.com/longhorn/longhorn/v${LH_VER}/scripts/environment_check.sh | sudo bash
+#kubectl describe node server2 | grep -i taint
+#kubectl describe node server3 | grep -i taint
+#kubectl describe node server4 | grep -i taint
+#kubectl taint nodes server2 node-role.kubernetes.io/control-plane:NoSchedule-
+#kubectl taint nodes server3 node-role.kubernetes.io/control-plane:NoSchedule-
+#kubectl taint nodes server4 node-role.kubernetes.io/control-plane:NoSchedule-
+
+echo "[CHECK] Longhorn preflight requirements"
+if command -v longhornctl &> /dev/null; then
+  LONGHORNCTL=$(command -v longhornctl)
+else
+  ARCH=$(uname -m)
+  case "$ARCH" in
+    x86_64|amd64)
+      LH_CTL_ARCH="amd64"
+      ;;
+    aarch64|arm64)
+      LH_CTL_ARCH="arm64"
+      ;;
+    *)
+      echo "  - Unsupported architecture for longhornctl: ${ARCH}. Exiting..."
+      exit
+      ;;
+  esac
+  LONGHORNCTL="/usr/local/bin/longhornctl"
+  sudo curl -sSfL -o "${LONGHORNCTL}" "https://github.com/longhorn/cli/releases/download/v${LH_VER}/longhornctl-linux-${LH_CTL_ARCH}"
+  sudo chmod +x "${LONGHORNCTL}"
+fi
+sudo "${LONGHORNCTL}" --kubeconfig="${KUBECONFIG_PATH}" check preflight
 echo -e "    \nPress ENTER to proceed with installation, Ctrl-C otherwise..."
 read wait
 
 echo "[TASK] Create the helm source"
 sudo flux create source helm longhorn \
   --url="https://charts.longhorn.io" \
+  --namespace="flux-system" \
   --interval=2h \
   --export > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/sources/longhorn.yaml"
 
@@ -105,7 +139,25 @@ git commit -am "longhorn helm default values"
 git push
 
 echo "[TASK] Configure values file"
-# empty todo setup backups
+# >>> lightweight
+# Four nodes at home, not a datacenter. The CSI sidecars are leader-elected --
+# only one of each is ever active and the Deployment reschedules it if its node
+# dies -- so three copies apiece is 8 idle pods. The UI is stateless.
+yq -i '.csi.attacherReplicaCount=1' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/longhorn/longhorn-values.yaml
+yq -i '.csi.provisionerReplicaCount=1' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/longhorn/longhorn-values.yaml
+yq -i '.csi.resizerReplicaCount=1' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/longhorn/longhorn-values.yaml
+yq -i '.csi.snapshotterReplicaCount=1' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/longhorn/longhorn-values.yaml
+yq -i '.longhornUI.replicas=1' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/longhorn/longhorn-values.yaml
+# Data replicas: 2 copies, not 3. Every write fans out to each replica over
+# 1GbE, so this roughly halves Longhorn's replication traffic. Two knobs:
+# defaultClassReplicaCount is what the `longhorn` StorageClass stamps on every
+# PVC (the one that matters), defaultReplicaCount covers volumes made outside
+# it. Existing volumes keep their own spec.numberOfReplicas -- change those
+# per volume. Not 1: nodes have died here, and 1 replica is no redundancy.
+yq -i '.persistence.defaultClassReplicaCount=2' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/longhorn/longhorn-values.yaml
+yq -i '.defaultSettings.defaultReplicaCount=2' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/longhorn/longhorn-values.yaml
+# <<< lightweight
+# todo setup backups
 
 mkdir -p ${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/longhorn-system
 mkdir -p /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/longhorn-system/longhorn
@@ -192,32 +244,90 @@ while sudo flux get all -A | grep -q "Unknown" ; do
   sleep 10
 done
 
-#echo "[TASK] Add longhorn frontend ingress"
-#cat>/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/longhorn-system/longhorn-ingress.yaml<<EOF
-#apiVersion: networking.k8s.io/v1
-#kind: Ingress
-#metadata:
-#  name: longhorn-ingress
-#  namespace: longhorn-system
-#  annotations:
-#    kubernetes.io/ingress.class: "nginx"
-#    nginx.ingress.kubernetes.io/auth-type: basic
-#    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
-#    nginx.ingress.kubernetes.io/auth-secret: basic-auth
-#    nginx.ingress.kubernetes.io/auth-realm: 'Authentication Required'
-#    nginx.ingress.kubernetes.io/rewrite-target: /\$2
-#spec:
-#  rules:
-#  - http:
-#      paths:
-#      - pathType: Prefix
-#        path: /lh(/|$)(.*)
-#        backend:
-#          service:
-#            name: longhorn-frontend
-#            port:
-#              number: 80
-#EOF
+# >>> basicauth
+echo "[TASK] Add longhorn frontend ingress with basic auth"
+# The Longhorn UI has no authentication of its own and can delete volumes, so
+# it is never published without a login in front of it. The credentials are the
+# ones read above; `longhorn-secret` keeps the old nginx-format copy, this is
+# the `users` key Traefik's middleware reads.
+#
+# cert-manager Certificates are namespace scoped, so this namespace needs its
+# own wildcard; letsencrypt-dns is the only issuer that can satisfy one.
+cat>/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/longhorn-system/longhorn/longhorn-certificate.yaml<<EOF
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: longhorn-wildcard
+  namespace: longhorn-system
+spec:
+  secretName: longhorn-wildcard-tls
+  issuerRef:
+    name: letsencrypt-dns
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.<REDACTED>"
+    - <REDACTED>
+EOF
+
+# Traefik's basicAuth middleware reads an htpasswd list from the `users` key.
+# openssl's apr1 output is one of the formats Traefik accepts. Capture it into
+# a variable first: the hash contains `$` and would be expanded by the shell if
+# written inline inside double quotes.
+BASICAUTH_USERS="${longhornUser}:$(openssl passwd -apr1 "${longhornPass}")"
+sudo kubectl create secret generic "longhorn-system-basicauth" \
+  --namespace "longhorn-system" \
+  --from-literal=users="${BASICAUTH_USERS}" \
+  --dry-run=client -o yaml \
+  | kubeseal --cert="/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/pub-sealed-secrets-${CLUSTER_NAME}.pem" \
+  --format=yaml > "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/longhorn-system/longhorn/longhorn-system-basicauth.yaml.tmp" \
+  && mv "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/longhorn-system/longhorn/longhorn-system-basicauth.yaml.tmp" "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/longhorn-system/longhorn/longhorn-system-basicauth.yaml"
+if [ ! -s "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/longhorn-system/longhorn/longhorn-system-basicauth.yaml" ]; then
+  echo "  - FAILED to seal longhorn-system-basicauth! Exiting before commit..."
+  rm -f "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/longhorn-system/longhorn/longhorn-system-basicauth.yaml.tmp"
+  exit 1
+fi
+
+cat>/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/longhorn-system/longhorn/basicauth-middleware.yaml<<EOF
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: basicauth
+  namespace: longhorn-system
+spec:
+  basicAuth:
+    secret: longhorn-system-basicauth
+    removeHeader: true
+EOF
+
+cat>/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/longhorn-system/longhorn/longhorn-ingress.yaml<<EOF
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: longhorn
+  namespace: longhorn-system
+  annotations:
+    # Middleware refs are <namespace>-<name>@kubernetescrd. Cross-namespace
+    # references are off in the Traefik values, so the middleware lives here.
+    traefik.ingress.kubernetes.io/router.middlewares: longhorn-system-basicauth@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: longhorn.<REDACTED>
+      http:
+        paths:
+          - backend:
+              service:
+                name: longhorn-frontend
+                port:
+                  number: 80
+            path: /
+            pathType: Prefix
+  tls:
+    - hosts:
+        - longhorn.<REDACTED>
+      secretName: longhorn-wildcard-tls
+EOF
+# <<< basicauth
 
 echo "[TASK] Update kustomize"
 cd /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/longhorn-system/longhorn

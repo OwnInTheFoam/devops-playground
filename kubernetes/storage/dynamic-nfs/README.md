@@ -9,6 +9,7 @@ by [Just me and OpenSource](https://github.com/justmeandopensource/kubernetes)
 ### Requirements
 - An existing NFS server
 - Sudo user
+- Generic storage node setup has been completed from `../common`
 
 ### Steps
 
@@ -27,9 +28,12 @@ su - nfsuser
 1. **Setup NFS server on Host**
 
     ```
-    sudo apt update
-    sudo apt -y install nfs-kernel-server
+    cd ../common
+    sudo ./installHost.sh
+    cd ../dynamic-nfs
     ```
+
+    The generic storage host setup installs NFS server packages and shared storage dependencies.
 
 2. **Create share directories on Host**
 
@@ -82,8 +86,9 @@ su - nfsuser
 5. **Setup NFS client on Client**
 
     ```
-    sudo apt update
-    sudo apt -y install nfs-common
+    cd ../common
+    sudo ./installClient.sh
+    cd ../dynamic-nfs
     ```
 
 6. **Create mount points and directories on Client**

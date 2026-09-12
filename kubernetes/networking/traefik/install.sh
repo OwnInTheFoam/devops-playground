@@ -6,8 +6,8 @@
 # - yq (wget https://github.com/mikefarah/yq/releases/download/v4.30.6/yq_linux_amd64.tar.gz -O - | tar xz && mv yq_linux_amd64 /usr/bin/yq)
 
 # DEFINES - versions
-traefikVer=2.9.6
-traefikChartVer=20.8.0
+traefikVer=3.6.13 # helm search hub --max-col-width 80 traefik | grep "traefik/traefik"
+traefikChartVer=39.0.8
 # VARIABLE DEFINES
 logFile="${HOME}/traefik/install.log"
 #logFile="/dev/null"

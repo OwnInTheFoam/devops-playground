@@ -1,45 +1,44 @@
-#!/bin/bash
-# chmod u+x install.sh
-# git add --chmod=+x install.sh
+#!/usr/bin/env bash
+set -euo pipefail
 
-# This script will run uninstall.sh on all servers;
+DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)
+# shellcheck disable=SC1091
+source "${DIR}/cluster.env"
 
-# requirements
-# - ssh with key pair access to all servers
+LOG_FILE="${DIR}/uninstallAll.log"
+TASK_NO=0
 
-# DEFINES - versions
-kubernetesVer=1.26.7
-containerdVer=1.6.21
-runcVer=1.1.7
-cniPluginVer=1.3.0
-#calicoVer=3.18
-flannelVer=0.21.5
-# SERVERS
-serverNumber=0
-serverName=("server4" "server1" "server2" "server3")
-serverUser=("server4" "server1" "server2" "server3")
-serversshIP=("123.456.78.910" "123.456.78.910" "123.456.78.910" "123.456.78.910")
-serverlocalIP=("192.168.0.227" "192.168.0.215" "192.168.0.225" "192.168.0.226")
-servernetworkIP="192.168.0.0/24"
-servercniIP="10.244.0.0/16"
-serverPort=("22004" "22001" "22002" "22003")
-# VARIABLE DEFINES
-DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-cd ${DIR}
-logFile="${DIR}/uninstallAll.log"
-touch ${logFile}
-#logFile="/dev/null"
+log() { echo "$1" | tee -a "${LOG_FILE}"; }
+task() { TASK_NO=$((TASK_NO + 1)); log "[TASK ${TASK_NO}] $1"; }
+run() { "$@" >>"${LOG_FILE}" 2>&1; }
 
-echo "[TASK 1] Run uninstall.sh on all other servers"
-for ((i = 1; i < ${#serverName[@]}; ++i)); do
-  echo "          - ${serverName[$i]} uninstall.sh"
-  ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} 'mkdir -p ~/k8s' >>${logFile} 2>&1
-  scp -P ${serverPort[$i]} ${DIR}/uninstall.sh ${serverUser[$i]}@${serverlocalIP[$i]}:~/k8s/uninstall.sh >>${logFile} 2>&1
-  ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "sed -i 's/.*serverNumber=.*/serverNumber=$i/' ~/k8s/uninstall.sh" >>${logFile} 2>&1
-  ssh -t -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "~/k8s/uninstall.sh"
+node_user() {
+  case "$1" in
+    server1) echo "${SERVER1_USER}" ;;
+    server2) echo "${SERVER2_USER}" ;;
+    server3) echo "${SERVER3_USER}" ;;
+    server4) echo "${SERVER4_USER}" ;;
+  esac
+}
+
+node_port() {
+  case "$1" in
+    server1) echo "${SERVER1_PORT}" ;;
+    server2) echo "${SERVER2_PORT}" ;;
+    server3) echo "${SERVER3_PORT}" ;;
+    server4) echo "${SERVER4_PORT}" ;;
+  esac
+}
+
+task "Run uninstall.sh on all nodes via bastion map"
+for node in "${ALL_NODES[@]}"; do
+  user="$(node_user "${node}")"
+  port="$(node_port "${node}")"
+  log "[${node}] copy and run uninstall"
+  run ssh -p "${port}" "${user}@${SSH_BASTION_IP}" "mkdir -p ~/k8s"
+  run scp -P "${port}" "${DIR}/cluster.env" "${user}@${SSH_BASTION_IP}:~/k8s/cluster.env"
+  run scp -P "${port}" "${DIR}/uninstall.sh" "${user}@${SSH_BASTION_IP}:~/k8s/uninstall.sh"
+  run ssh -t -p "${port}" "${user}@${SSH_BASTION_IP}" "cd ~/k8s && sudo -E bash ./uninstall.sh"
 done
 
-echo "[TASK 2] Run uninstall.sh on this server"
-/bin/bash ./uninstall.sh
-
-echo "COMPLETE"
+log "uninstallAll.sh complete (details in ${LOG_FILE})"

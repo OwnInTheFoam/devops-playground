@@ -1,67 +1,177 @@
-#!/bin/bash
-# chmod u+x install.sh
-# git add --chmod=+x install.sh
+#!/usr/bin/env bash
+set -euo pipefail
 
-# This script will run Install.sh on all servers;
-# then InstallServer.sh on master nodes;
-# then InstallAgents.sh on agent nodes.
+# Phased wrapper for manual execution. It does not perform all actions in one call.
+# Usage:
+#   ./setup.sh prep-all
+#   ./setup.sh prep-ha
+#   ./setup.sh init-primary
+#   ./setup.sh join-cp server3
+#   ./setup.sh join-cp server2
+#   ./setup.sh join-worker server1
 
-# requirements
-# - ssh with key pair access to all servers
+DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)
+# shellcheck disable=SC1091
+source "${DIR}/cluster.env"
 
-# DEFINES - versions
-kubernetesVer=1.26.7
-containerdVer=1.6.21
-runcVer=1.1.7
-cniPluginVer=1.3.0
-#calicoVer=3.18
-flannelVer=0.21.5
-# SERVERS
-serverNumber=0
-serverName=("server4" "server1" "server2" "server3")
-serverUser=("server4" "server1" "server2" "server3")
-serversshIP=("123.456.78.910" "123.456.78.910" "123.456.78.910" "123.456.78.910")
-serverlocalIP=("192.168.0.227" "192.168.0.215" "192.168.0.225" "192.168.0.226")
-servernetworkIP="192.168.0.0/24"
-servercniIP="10.244.0.0/16"
-serverPort=("22004" "22001" "22002" "22003")
-# VARIABLE DEFINES
-DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-cd ${DIR}
-logFile="${DIR}/setup.log"
-touch ${logFile}
-#logFile="/dev/null"
+ACTION="${1:-help}"
+TARGET_NODE="${2:-}"
 
-echo "[TASK 1] Run Install.sh on this server"
-/bin/bash ./Install.sh
+LOG_FILE="${DIR}/setup.log"
+TASK_NO=0
 
-echo "[TASK 2] Run Install.sh on all other servers"
-for ((i = 1; i < ${#serverName[@]}; ++i)); do
-  echo "          - ${serverName[$i]} Install.sh"
-  ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} 'mkdir -p ~/k8s' >>${logFile} 2>&1
-  scp -P ${serverPort[$i]} ${DIR}/Install.sh ${serverUser[$i]}@${serverlocalIP[$i]}:~/k8s/Install.sh >>${logFile} 2>&1
-  ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "sed -i 's/.*serverNumber=.*/serverNumber=$i/' ~/k8s/Install.sh" >>${logFile} 2>&1
-  ssh -t -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "~/k8s/Install.sh"
-done
+log() { echo "$1" | tee -a "${LOG_FILE}"; }
+task() { TASK_NO=$((TASK_NO + 1)); log "[TASK ${TASK_NO}] $1"; }
+run() { "$@" >>"${LOG_FILE}" 2>&1; }
 
-echo "[TASK 3] Run InstallServer.sh on this server"
-/bin/bash ./InstallServer.sh
+SSH_OPTS=(
+  -o BatchMode=yes
+  -o ConnectTimeout=10
+  -o StrictHostKeyChecking=accept-new
+)
 
-echo "[TASK 4] Copy joincluster script and kubeconfig to other servers"
-for ((i = 1; i < ${#serverName[@]}; ++i)); do
-  echo "          - ${serverName[$i]} copy joincluster.sh"
-  scp -P ${serverPort[$i]} ${DIR}/joincluster.sh ${serverUser[$i]}@${serverlocalIP[$i]}:~/k8s/joincluster.sh >>${logFile} 2>&1
-  ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} 'mkdir -p ~/.kube' >>${logFile} 2>&1
-  #scp -P ${serverPort[$i]} /etc/kubernetes/admin.conf ${serverUser[$i]}@${serverlocalIP[$i]}:~/.kube/config >>${logFile} 2>&1
-  scp -P ${serverPort[$i]} ~/.kube/config ${serverUser[$i]}@${serverlocalIP[$i]}:~/.kube/config >>${logFile} 2>&1
-done
+# Connectivity mode:
+# - bastion (default): user@${SSH_BASTION_IP} with per-node ssh ports.
+# - local: user@<node-lan-ip> with per-node ssh ports.
+CONNECT_MODE="${CONNECT_MODE:-bastion}"
 
-echo "[TASK 5] Run InstallAgent.sh on all other servers"
-for ((i = 1; i < ${#serverName[@]}; ++i)); do
-  echo "          - ${serverName[$i]} InstallAgent.sh"
-  scp -P ${serverPort[$i]} ${DIR}/InstallAgent.sh ${serverUser[$i]}@${serverlocalIP[$i]}:~/k8s/InstallAgent.sh >>${logFile} 2>&1
-  ssh -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "sed -i 's/.*serverNumber=.*/serverNumber=$i/' ~/k8s/InstallAgent.sh" >>${logFile} 2>&1
-  ssh -t -p ${serverPort[$i]} ${serverUser[$i]}@${serverlocalIP[$i]} "~/k8s/InstallAgent.sh"
-done
+node_ip() {
+  case "$1" in
+    server1) echo "${SERVER1_IP}" ;;
+    server2) echo "${SERVER2_IP}" ;;
+    server3) echo "${SERVER3_IP}" ;;
+    server4) echo "${SERVER4_IP}" ;;
+    *) echo "Unknown node: $1"; return 1 ;;
+  esac
+}
 
-echo "COMPLETE"
+node_user() {
+  case "$1" in
+    server1) echo "${SERVER1_USER}" ;;
+    server2) echo "${SERVER2_USER}" ;;
+    server3) echo "${SERVER3_USER}" ;;
+    server4) echo "${SERVER4_USER}" ;;
+    *) echo "Unknown node: $1"; return 1 ;;
+  esac
+}
+
+node_port() {
+  case "$1" in
+    server1) echo "${SERVER1_PORT}" ;;
+    server2) echo "${SERVER2_PORT}" ;;
+    server3) echo "${SERVER3_PORT}" ;;
+    server4) echo "${SERVER4_PORT}" ;;
+    *) echo "Unknown node: $1"; return 1 ;;
+  esac
+}
+
+node_host() {
+  local node="$1"
+  if [[ "${CONNECT_MODE}" == "local" ]]; then
+    node_ip "${node}"
+  else
+    echo "${SSH_BASTION_IP}"
+  fi
+}
+
+copy_scripts() {
+  local node="$1"
+  local user port host
+  user="$(node_user "${node}")"
+  port="$(node_port "${node}")"
+  host="$(node_host "${node}")"
+
+  log "[${node}] copy scripts to ${user}@${host}:${port}"
+  run ssh "${SSH_OPTS[@]}" -p "${port}" "${user}@${host}" "mkdir -p ~/k8s"
+  run scp -P "${port}" "${SSH_OPTS[@]}" "${DIR}/cluster.env" "${user}@${host}:~/k8s/cluster.env"
+  run scp -P "${port}" "${SSH_OPTS[@]}" "${DIR}/Install.sh" "${user}@${host}:~/k8s/Install.sh"
+  run scp -P "${port}" "${SSH_OPTS[@]}" "${DIR}/InstallServer.sh" "${user}@${host}:~/k8s/InstallServer.sh"
+  run scp -P "${port}" "${SSH_OPTS[@]}" "${DIR}/InstallApiEndpointHA.sh" "${user}@${host}:~/k8s/InstallApiEndpointHA.sh"
+  run scp -P "${port}" "${SSH_OPTS[@]}" "${DIR}/joinMaster.sh" "${user}@${host}:~/k8s/joinMaster.sh"
+  run scp -P "${port}" "${SSH_OPTS[@]}" "${DIR}/InstallAgent.sh" "${user}@${host}:~/k8s/InstallAgent.sh"
+}
+
+run_remote() {
+  local node="$1"
+  local cmd="$2"
+  local user port host
+  user="$(node_user "${node}")"
+  port="$(node_port "${node}")"
+  host="$(node_host "${node}")"
+
+  log "[${node}] run: ${cmd}"
+  run ssh -t "${SSH_OPTS[@]}" -p "${port}" "${user}@${host}" "${cmd}"
+}
+
+case "${ACTION}" in
+  prep-all)
+    task "Run setup phase A on all nodes (CONNECT_MODE=${CONNECT_MODE})"
+    for node in "${ALL_NODES[@]}"; do
+      copy_scripts "${node}"
+      run_remote "${node}" "cd ~/k8s && sudo -E bash ./Install.sh"
+    done
+    ;;
+  prep-ha)
+    task "Install HA endpoint services (HAProxy + Keepalived) on control-plane nodes"
+    for node in "${CONTROL_PLANE_NODES[@]}"; do
+      copy_scripts "${node}"
+      run_remote "${node}" "cd ~/k8s && sudo bash ./InstallApiEndpointHA.sh"
+    done
+    ;;
+  init-primary)
+    task "Run setup phase B on ${PRIMARY_CONTROL_PLANE}"
+    copy_scripts "${PRIMARY_CONTROL_PLANE}"
+    run_remote "${PRIMARY_CONTROL_PLANE}" "cd ~/k8s && sudo -E bash ./InstallServer.sh"
+    ;;
+  join-cp)
+    if [[ -z "${TARGET_NODE}" ]]; then
+      log "Usage: ./setup.sh join-cp <server3|server2>"
+      exit 1
+    fi
+    task "Run setup phase D to join control-plane ${TARGET_NODE}"
+    copy_scripts "${TARGET_NODE}"
+
+    PRIMARY_USER="$(node_user "${PRIMARY_CONTROL_PLANE}")"
+    PRIMARY_PORT="$(node_port "${PRIMARY_CONTROL_PLANE}")"
+    PRIMARY_HOST="$(node_host "${PRIMARY_CONTROL_PLANE}")"
+    TARGET_USER="$(node_user "${TARGET_NODE}")"
+    TARGET_PORT="$(node_port "${TARGET_NODE}")"
+    TARGET_HOST="$(node_host "${TARGET_NODE}")"
+
+    run scp -P "${PRIMARY_PORT}" "${SSH_OPTS[@]}" "${PRIMARY_USER}@${PRIMARY_HOST}:~/k8s/join-control-plane.sh" "${DIR}/join-control-plane.sh"
+    run scp -P "${PRIMARY_PORT}" "${SSH_OPTS[@]}" "${PRIMARY_USER}@${PRIMARY_HOST}:~/k8s/join-worker.sh" "${DIR}/join-worker.sh"
+    run scp -P "${TARGET_PORT}" "${SSH_OPTS[@]}" "${DIR}/join-control-plane.sh" "${TARGET_USER}@${TARGET_HOST}:~/k8s/join-control-plane.sh"
+    run scp -P "${TARGET_PORT}" "${SSH_OPTS[@]}" "${DIR}/join-worker.sh" "${TARGET_USER}@${TARGET_HOST}:~/k8s/join-worker.sh"
+    run_remote "${TARGET_NODE}" "cd ~/k8s && sudo -E bash ./joinMaster.sh"
+    ;;
+  join-worker)
+    if [[ -z "${TARGET_NODE}" ]]; then
+      log "Usage: ./setup.sh join-worker <server1>"
+      exit 1
+    fi
+    task "Run setup phase E to join worker ${TARGET_NODE}"
+    copy_scripts "${TARGET_NODE}"
+
+    PRIMARY_USER="$(node_user "${PRIMARY_CONTROL_PLANE}")"
+    PRIMARY_PORT="$(node_port "${PRIMARY_CONTROL_PLANE}")"
+    PRIMARY_HOST="$(node_host "${PRIMARY_CONTROL_PLANE}")"
+    TARGET_USER="$(node_user "${TARGET_NODE}")"
+    TARGET_PORT="$(node_port "${TARGET_NODE}")"
+    TARGET_HOST="$(node_host "${TARGET_NODE}")"
+
+    run scp -P "${PRIMARY_PORT}" "${SSH_OPTS[@]}" "${PRIMARY_USER}@${PRIMARY_HOST}:~/k8s/join-worker.sh" "${DIR}/join-worker.sh"
+    run scp -P "${TARGET_PORT}" "${SSH_OPTS[@]}" "${DIR}/join-worker.sh" "${TARGET_USER}@${TARGET_HOST}:~/k8s/join-worker.sh"
+    run_remote "${TARGET_NODE}" "cd ~/k8s && sudo -E bash ./InstallAgent.sh"
+    ;;
+  help|*)
+    cat <<EOF | tee -a "${LOG_FILE}"
+Usage:
+  ./setup.sh prep-all
+  ./setup.sh prep-ha
+  ./setup.sh init-primary
+  ./setup.sh join-cp server3
+  ./setup.sh join-cp server2
+  ./setup.sh join-worker server1
+EOF
+    ;;
+esac

@@ -103,7 +103,7 @@ metadata:
 type: Opaque
 stringData:
   # Check how to add postgres secret manifest
-  PGPASSWORD: 12345test
+  PGPASSWORD: <REDACTED>
 EOF
 ```
 Apply the postgres secret
