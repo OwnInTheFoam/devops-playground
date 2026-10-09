@@ -361,6 +361,11 @@ yq -i '.alertmanager.alertmanagerSpec.secrets[0] style="double"' /${HOME}/${K8S_
 # Routing. Watchdog fires permanently by design and is dropped. The three
 # inhibit rules are the chart defaults, kept so a critical alert silences its
 # warning/info siblings.
+#
+# message: one line per alert from its summary annotation. The default template
+# prints every label of every alert, so a group of a few alerts passes
+# Telegram's 4096-character limit and the notification is dropped. Capped at 20
+# lines. \$ keeps the template variables from shell expansion in this heredoc.
 cat>/${HOME}/${K8S_CONTEXT}/tmp/kps-alertmanager.yaml<<EOF
 global:
   resolve_timeout: 5m
@@ -384,6 +389,11 @@ receivers:
         chat_id: ${TELEGRAM_CHAT_ID}
         parse_mode: HTML
         send_resolved: true
+        message: |-
+          {{ if eq .Status "firing" }}🔥 FIRING{{ else }}✅ RESOLVED{{ end }} <b>{{ .CommonLabels.alertname | html }}</b>{{ if .CommonLabels.namespace }} · {{ .CommonLabels.namespace | html }}{{ end }}{{ if .CommonLabels.severity }} · {{ .CommonLabels.severity | html }}{{ end }}
+          {{ range \$i, \$a := .Alerts }}{{ if lt \$i 20 }}{{ if eq \$a.Status "firing" }}• {{ else }}✓ {{ end }}{{ if \$a.Annotations.summary }}{{ \$a.Annotations.summary | html }}{{ else }}{{ \$a.Labels.alertname | html }}{{ range \$a.Labels.SortedPairs }}{{ if and (ne .Name "alertname") (ne .Name "prometheus") }} {{ .Name | html }}={{ .Value | html }}{{ end }}{{ end }}{{ end }}
+          {{ end }}{{ end }}{{ if gt (len .Alerts) 20 }}… {{ len .Alerts }} alerts in total
+          {{ end }}{{ if .CommonAnnotations.description }}<i>{{ .CommonAnnotations.description | html }}</i>{{ end }}
 inhibit_rules:
   - source_matchers:
       - severity = critical
