@@ -108,6 +108,8 @@ yq -i '.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources
 yq -i '.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.storageClassName="longhorn"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.defaultRules.create=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.defaultRules.rules.etcd=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
+# Replaced by the etcd-leader-changes rule group below.
+yq -i '.defaultRules.disabled.etcdHighNumberOfLeaderChanges=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.defaultRules.rules.kubeScheduler=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.defaultRules.rules.kubeControllerManager=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.defaultRules.rules.kubeProxy=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
@@ -301,6 +303,21 @@ longhorn:
             severity: critical
           annotations:
             summary: "{{ \$value }} Longhorn node(s) are not Ready"
+# Replaces the chart's rule, which takes the max across members before increase().
+# A missed scrape of the member with the highest counter dips that max, increase()
+# reads a counter reset, and it fires with no election (server3 stall, 2026-11-03).
+etcd-leader-changes:
+  groups:
+    - name: etcd-leader-changes
+      rules:
+        - alert: etcdHighNumberOfLeaderChanges
+          expr: max by (job) (increase(etcd_server_leader_changes_seen_total{job=~".*etcd.*"}[15m])) >= 4
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "etcd cluster has high number of leader changes."
+            description: "etcd cluster {{ \$labels.job }}: {{ \$value }} leader changes within the last 15 minutes. Frequent elections may be a sign of insufficient resources, high network latency, or disruptions by other components and should be investigated."
 EOF
 # Double-quoted on purpose: the load() path has to be shell-expanded.
 yq -i ".additionalPrometheusRulesMap = load(\"/${HOME}/${K8S_CONTEXT}/tmp/kps-rules.yaml\")" /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
