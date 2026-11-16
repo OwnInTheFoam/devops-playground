@@ -13,6 +13,12 @@ Port: 1080
 Proxy DNS: Yes
 ```
 
+Use edge > Right Click > properties > Target
+Add following on the end:
+```
+ --proxy-server="socks5://127.0.0.1:1080"
+```
+
 # Access website
 
 `http://192.168.0.1`
