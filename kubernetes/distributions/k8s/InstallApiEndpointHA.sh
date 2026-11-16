@@ -116,7 +116,7 @@ ${PEERS}
     auth_pass k8sha220
   }
   virtual_ipaddress {
-    ${CONTROL_PLANE_VIP}/24 dev ${CONTROL_PLANE_VIP_IFACE}
+    ${CONTROL_PLANE_VIP}/32 dev ${CONTROL_PLANE_VIP_IFACE}
   }
   track_script {
     chk_haproxy
