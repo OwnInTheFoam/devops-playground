@@ -107,7 +107,7 @@ yq -i '.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.accessMod
 yq -i '.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage="1Gi"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.storageClassName="longhorn"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.defaultRules.create=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
-yq -i '.defaultRules.rules.etcd=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
+yq -i '.defaultRules.rules.etcd=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 # Replaced by the etcd-leader-changes rule group below.
 yq -i '.defaultRules.disabled.etcdHighNumberOfLeaderChanges=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.defaultRules.rules.kubeScheduler=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
@@ -116,14 +116,18 @@ yq -i '.defaultRules.rules.kubeProxy=false' /${HOME}/${K8S_CONTEXT}/projects/${C
 yq -i '.grafana.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 # The control-plane components bind their metrics to localhost only on this
 # cluster, so Prometheus cannot reach them from a pod:
-#   etcd                    --listen-metrics-urls=http://127.0.0.1:2381
 #   kube-scheduler          --bind-address=127.0.0.1
 #   kube-controller-manager --bind-address=127.0.0.1
 #   kube-proxy              metricsBindAddress: ""  (defaults to localhost)
-# Leaving these enabled gives four permanently firing TargetDown alerts.
+# Leaving these enabled gives permanently firing TargetDown alerts.
 # Enabling them for real means changing the kubeadm manifests on the nodes,
 # which is out of scope for gitops.
-yq -i '.kubeEtcd.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
+# etcd is the exception: since 2026-09-28 /etc/kubernetes/manifests/etcd.yaml on
+# server2-4 has --listen-metrics-urls=http://127.0.0.1:2381,http://<node-ip>:2381
+# (ufw only admits 192.168.0.0/24 and the pod CIDR). This is a hand edit to the
+# static manifest: `kubeadm upgrade` regenerates it and drops the node IP, and
+# the kube-etcd TargetDown alert is what tells you.
+yq -i '.kubeEtcd.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.kubeScheduler.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.kubeControllerManager.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.kubeProxy.enabled=false' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
@@ -143,8 +147,11 @@ yq -i '.prometheus.additionalServiceMonitors[1].namespaceSelector.matchNames[0]=
 yq -i '.prometheus.additionalServiceMonitors[1].endpoints[0].port="http-metrics"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.prometheus.additionalServiceMonitors[1].endpoints[0].port style="double"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.accessModes[0]="ReadWriteOnce"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
-yq -i '.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage="5Gi"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
+yq -i '.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage="8Gi"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName="longhorn"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
+# The apiserver's latency/size histograms are the largest series set and no
+# dashboard or rule reads their buckets; drop them at scrape.
+yq -i '.kubeApiServer.serviceMonitor.metricRelabelings += [{"action": "drop", "sourceLabels": ["__name__"], "regex": "(apiserver_request_duration_seconds|etcd_request_duration_seconds|apiserver_request_body_size_bytes|apiserver_response_sizes|apiserver_watch_cache_read_wait_seconds|apiserver_watch_list_duration_seconds|apiserver_watch_events_sizes)_bucket"}]' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.grafana.persistence.enabled=true' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.grafana.persistence.type="pvc"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.grafana.persistence.type style="double"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
@@ -233,6 +240,9 @@ yq -i '.prometheus.additionalServiceMonitors[2].selector.matchLabels.app="longho
 yq -i '.prometheus.additionalServiceMonitors[2].namespaceSelector.matchNames[0]="longhorn-system"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.prometheus.additionalServiceMonitors[2].endpoints[0].port="manager"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 yq -i '.prometheus.additionalServiceMonitors[2].endpoints[0].port style="double"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
+# Traefik's metrics service (charts/traefik). honorLabels keeps Traefik's own
+# `service` label instead of overwriting it with the scraped Service's name.
+yq -i '.prometheus.additionalServiceMonitors[3] = {"name": "traefik-monitor", "selector": {"matchLabels": {"app.kubernetes.io/name": "traefik", "app.kubernetes.io/component": "metrics"}}, "namespaceSelector": {"matchNames": ["traefik"]}, "endpoints": [{"port": "metrics", "honorLabels": true}]}' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 # --- Alert rules. Merged in as additionalPrometheusRulesMap so the chart labels
 # them for the operator. Longhorn rules are upstream's published examples
 # (docs/1.11.0/monitoring/alert-rules-example); thresholds unchanged.
@@ -318,6 +328,41 @@ etcd-leader-changes:
           annotations:
             summary: "etcd cluster has high number of leader changes."
             description: "etcd cluster {{ \$labels.job }}: {{ \$value }} leader changes within the last 15 minutes. Frequent elections may be a sign of insufficient resources, high network latency, or disruptions by other components and should be investigated."
+# etcd latency as the apiserver sees it, node-exporter disk latency, and etcd's
+# own WAL fsync (scraped via kubeEtcd above; the chart's default etcd rules only
+# warn at a 500ms fsync p99). Thresholds for the first two are from the
+# 2026-09-26 server3 outage (5400rpm HDD under etcd): normal is ~6ms etcd /
+# <40ms disk; it ran 100ms+ / 90-105ms before the node locked up.
+# EtcdRequestLatencyHigh would have fired ~30h before it. The fsync threshold is
+# not calibrated: etcd wants p99 < 10ms; 100ms is well past that on any disk.
+etcd-disk:
+  groups:
+    - name: etcd-disk
+      rules:
+        - alert: EtcdRequestLatencyHigh
+          expr: sum by (instance) (rate(etcd_request_duration_seconds_sum{job="apiserver"}[5m])) / sum by (instance) (rate(etcd_request_duration_seconds_count{job="apiserver"}[5m])) > 0.1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "apiserver {{ \$labels.instance }} etcd requests averaging {{ \$value | humanizeDuration }}"
+            description: "etcd requests from this apiserver have averaged over 100ms for 10 minutes (normal is ~6ms). Usually a slow disk under etcd; node leases start timing out next."
+        - alert: NodeDiskWriteLatencyHigh
+          expr: (rate(node_disk_write_time_seconds_total[5m]) / rate(node_disk_writes_completed_total[5m])) > 0.05 and on(instance, device) node_disk_info{model!="VIRTUAL-DISK"}
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ \$labels.instance }} {{ \$labels.device }} write latency {{ \$value | humanizeDuration }}"
+            description: "Average write latency on a physical disk has been over 50ms for 10 minutes. Longhorn iSCSI devices (VIRTUAL-DISK) are excluded."
+        - alert: EtcdWalFsyncSlow
+          expr: histogram_quantile(0.99, sum by (instance, le) (rate(etcd_disk_wal_fsync_duration_seconds_bucket{job="kube-etcd"}[5m]))) > 0.1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "etcd {{ \$labels.instance }} WAL fsync p99 {{ \$value | humanizeDuration }}"
+            description: "etcd's p99 WAL fsync has been over 100ms for 10 minutes (etcd wants under 10ms). The disk under /var/lib/etcd is too slow or saturated."
 EOF
 # Double-quoted on purpose: the load() path has to be shell-expanded.
 yq -i ".additionalPrometheusRulesMap = load(\"/${HOME}/${K8S_CONTEXT}/tmp/kps-rules.yaml\")" /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
@@ -407,7 +452,7 @@ receivers:
         parse_mode: HTML
         send_resolved: true
         message: |-
-          {{ if eq .Status "firing" }}🔥 FIRING{{ else }}✅ RESOLVED{{ end }} <b>{{ .CommonLabels.alertname | html }}</b>{{ if .CommonLabels.namespace }} · {{ .CommonLabels.namespace | html }}{{ end }}{{ if .CommonLabels.severity }} · {{ .CommonLabels.severity | html }}{{ end }}
+          DEV Tailscale: {{ if eq .Status "firing" }}🔥 FIRING{{ else }}✅ RESOLVED{{ end }} <b>{{ .CommonLabels.alertname | html }}</b>{{ if .CommonLabels.namespace }} · {{ .CommonLabels.namespace | html }}{{ end }}{{ if .CommonLabels.severity }} · {{ .CommonLabels.severity | html }}{{ end }}
           {{ range \$i, \$a := .Alerts }}{{ if lt \$i 20 }}{{ if eq \$a.Status "firing" }}• {{ else }}✓ {{ end }}{{ if \$a.Annotations.summary }}{{ \$a.Annotations.summary | html }}{{ else }}{{ \$a.Labels.alertname | html }}{{ range \$a.Labels.SortedPairs }}{{ if and (ne .Name "alertname") (ne .Name "prometheus") }} {{ .Name | html }}={{ .Value | html }}{{ end }}{{ end }}{{ end }}
           {{ end }}{{ end }}{{ if gt (len .Alerts) 20 }}… {{ len .Alerts }} alerts in total
           {{ end }}{{ if .CommonAnnotations.description }}<i>{{ .CommonAnnotations.description | html }}</i>{{ end }}
@@ -435,6 +480,40 @@ inhibit_rules:
   - target_matchers:
       - alertname = InfoInhibitor
 EOF
+# <REDACTED>'s alerts go only to <REDACTED>'s own channel and bot, never to <REDACTED>'s.
+# Its bot token is sealed by gitops infra/apps/<REDACTED>/seal-secret.sh telegram;
+# without that file there is no secret to mount, so the receiver is left out.
+# The routes come first, so nothing below can catch them. Longhorn's volume
+# alerts label the namespace as pvc_namespace. InfoInhibitor only exists to
+# mute info alerts, so it goes nowhere. Same message as <REDACTED>'s, without the
+# "DEV Tailscale:" prefix.
+if [ -s "/${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/infra/common/monitoring/kube-prometheus-stack/alertmanager-telegram-<REDACTED>.yaml" ]; then
+  echo "[TASK] Alertmanager: <REDACTED> Telegram receiver"
+  cat>/${HOME}/${K8S_CONTEXT}/tmp/kps-alertmanager-<REDACTED>.yaml<<'EOF'
+receivers:
+  - name: telegram-<REDACTED>
+    telegram_configs:
+      - bot_token_file: /etc/alertmanager/secrets/alertmanager-telegram-<REDACTED>/bot_token
+        chat_id: <REDACTED>
+        parse_mode: HTML
+        send_resolved: true
+routes:
+  - receiver: "null"
+    matchers:
+      - namespace = "<REDACTED>-dev"
+      - alertname = "InfoInhibitor"
+  - receiver: telegram-<REDACTED>
+    matchers:
+      - namespace = "<REDACTED>-dev"
+  - receiver: telegram-<REDACTED>
+    matchers:
+      - pvc_namespace = "<REDACTED>-dev"
+EOF
+  yq -i ".receivers += load(\"/${HOME}/${K8S_CONTEXT}/tmp/kps-alertmanager-<REDACTED>.yaml\").receivers | .route.routes = load(\"/${HOME}/${K8S_CONTEXT}/tmp/kps-alertmanager-<REDACTED>.yaml\").routes + .route.routes" /${HOME}/${K8S_CONTEXT}/tmp/kps-alertmanager.yaml
+  yq -i '(.receivers[] | select(.name == "telegram-<REDACTED>") | .telegram_configs[0].message) = ((.receivers[] | select(.name == "telegram") | .telegram_configs[0].message) | sub("^DEV Tailscale: "; ""))' /${HOME}/${K8S_CONTEXT}/tmp/kps-alertmanager.yaml
+  yq -i '.alertmanager.alertmanagerSpec.secrets[1]="alertmanager-telegram-<REDACTED>"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
+  yq -i '.alertmanager.alertmanagerSpec.secrets[1] style="double"' /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
+fi
 # Double-quoted on purpose: the load() path has to be shell-expanded.
 yq -i ".alertmanager.config = load(\"/${HOME}/${K8S_CONTEXT}/tmp/kps-alertmanager.yaml\")" /${HOME}/${K8S_CONTEXT}/projects/${CLUSTER_REPO}/charts/prometheus-community/kube-prometheus-stack-values.yaml
 # <<< alertmanager-telegram
